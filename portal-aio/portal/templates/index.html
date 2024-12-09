@@ -1,0 +1,846 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application List</title>
+    <link rel="icon" type="image/png" href="/static/assets/favicon.png" sizes="48x48" />
+    <script src="https://unpkg.com/htmx.org@1.6.1"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.28.0/feather.min.js"></script>
+
+    <style>
+        :root {
+        --primary-color: #3498db;
+        --background-color: #f8f9fa;
+        --text-color: #333;
+        --border-color: #e0e0e0;
+        --button-bg: #f1f3f5;
+        --button-hover: #e9ecef;
+        --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    body {
+        font-family: var(--font-family);
+        line-height: 1.6;
+        color: var(--text-color);
+        margin: 0;
+        padding: 20px;
+        background-color: var(--background-color);
+    }
+
+    h1 {
+        text-align: center;
+        color: var(--text-color);
+        margin-bottom: 30px;
+        font-weight: 300;
+    }
+
+    .table-container {
+        overflow-x: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        background-color: white;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border-radius: 4px;
+    }
+
+    th, td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    th {
+        background-color: var(--background-color);
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.8em;
+        letter-spacing: 0.5px;
+    }
+
+    tr:last-child td {
+        border-bottom: none;
+    }
+
+    .links-column {
+        display: flex;
+        flex-direction: column;
+        min-width: 200px;
+        gap: 4px;
+    }
+
+    .link-entry:empty {
+        display: none;
+    }
+
+    .link {
+        display: inline-block;
+        padding: 2px 0;
+        text-decoration: none;
+        color: var(--primary-color);
+        font-size: 0.9em;
+        transition: color 0.3s;
+    }
+
+    .link:hover {
+        color: #2980b9;
+    }
+
+    .button-group {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px 12px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9em;
+        background-color: var(--button-bg);
+        color: var(--text-color);
+        transition: background-color 0.3s, opacity 0.3s;
+    }
+
+    .button:hover:not(:disabled) {
+        background-color: var(--button-hover);
+    }
+
+    .button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .button i {
+        margin-right: 4px;
+    }
+
+    @media (max-width: 768px) {
+        .table-container {
+            margin: 0 -20px;
+        }
+
+        table {
+            border-radius: 0;
+        }
+
+        th {
+            display: none;
+        }
+
+        tr {
+            display: block;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        td {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+        }
+
+        td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            margin-right: 10px;
+        }
+
+        .button-group {
+            justify-content: flex-end;
+        }
+    }
+        .loading-wrapper {
+            height: 25px;
+        }
+        .loading-indicator {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+        }
+
+        .loading-indicator::after {
+            content: "";
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            max-width: 300px;
+            z-index: 1000;
+        }
+
+        .toast {
+            padding: 15px 20px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            color: #172B4D;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
+        .toast-success {
+            background-color: #DCFFF1;
+        }
+
+        .toast-error {
+            background-color: #FFECEB;
+        }
+
+        @media (max-width: 768px) {
+            .toast-container {
+                top: 0;
+                right: 0;
+                left: 0;
+                max-width: 100%;
+            }
+
+            .toast {
+                border-radius: 0;
+            }
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            background-color: var(--background-color);
+        }
+
+        .tab.active {
+            background-color: white;
+            border-bottom: none;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        #instance-logs {
+            position: relative;
+        }
+        #log-console {
+            display: flex;
+            flex-direction: column;
+            background-color: #282c34;
+            color: #abb2bf;
+            font-family: 'Courier New', monospace;
+            line-height: 1.3;
+            padding: 15px;
+            height: 400px;
+            min-height: 50vh;
+            max-height: 70vh;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            border-radius: 8px;
+        }
+        #log-console span {
+            padding: 3px 0;
+        }
+
+        #log-console .warning {
+            color: #e5c07b;
+        }
+
+        #log-console .error {
+            color: #e06c75;
+        }
+
+        #pause-button {
+            position: absolute;
+            height: 30px;
+            width: 30px;
+            border-radius: 50%;
+            bottom: 10px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.8);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+        #pause-button:hover {
+            background-color: rgba(255, 255, 255, 1);
+        }
+        #pause-button i, #pause-button svg {
+            color: #313131;
+            width: 16px;
+            height: 16px;
+        }
+
+        .new-tunnel-form {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .new-tunnel-form input {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+
+        .new-tunnel-form button {
+            padding: 8px 16px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .new-tunnel-form button:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Instance Portal</h1>
+
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('application-list')">Application List</div>
+        <div class="tab" onclick="switchTab('tunnel-list')">Tunnels</div>
+        <div class="tab" onclick="switchTab('instance-logs')">Instance Logs</div>
+    </div>
+
+    <div id="application-list" class="tab-content active">
+        <div class="table-container">
+            <table>
+                <tr>
+                    <th>Port</th>
+                    <th>Application Name</th>
+                    <th>Links</th>
+                    <th>Quick-Tunnel Actions</th>
+                </tr>
+                {% for app_name, app in applications.items() %}
+                <tr>
+                    <td data-label="Port">{{ app.external_port }}</td>
+                    <td data-label="Application Name">{{ app.name }}</td>
+                    <td data-label="Links">
+                        <div class="links-column" id="links-{{ app.hostname }}_{{ app.external_port }}">
+                            <span class="link-entry direct" id="links-{{ app.hostname }}_{{ app.external_port }}-direct" data-port="{{ app.external_port }}" data-path="{{ app.open_path }}"></span>
+                            <span class="link-entry named" id="links-{{ app.hostname }}_{{ app.external_port }}-named-tunnel-external" data-port="{{ app.external_port }}" data-path="{{ app.open_path }}"></span>
+                            {% if app.internal_port != app.external_port %}
+                            <span class="link-entry named" id="links-{{ app.hostname }}_{{ app.external_port }}-named-tunnel-internal" data-port="{{ app.internal_port }}" data-path="{{ app.open_path }}"></span>
+                            {% endif %}
+                            <span class="link-entry quick" id="links-{{ app.hostname }}_{{ app.external_port }}-quick-tunnel" data-target_url="{{ proxy_address }}:{{ app.external_port }}" data-path="{{ app.open_path }}"></span>
+                            <div class="loading-indicator" id="loading-{{ app.hostname }}_{{ app.external_port }}" data-target_url="{{ proxy_address }}:{{ app.external_port }}" data-path="{{ app.open_path }}"></div>
+                        </div>
+                    </td>
+                    <td data-label="Quick-Tunnel Actions">
+                        <div class="button-group">
+                            <button class="button start-button" hx-post="/start-quick-tunnel/{{ proxy_address }}:{{ app.external_port }}" data-target_url="{{ proxy_address }}:{{ app.external_port }}" data-path="{{ app.open_path }}" hx-target="#links-{{ app.hostname }}_{{ app.external_port }}-quick-tunnel" hx-swap="none" id="start-{{ app.hostname }}_{{ app.external_port }}" title="Start Quick Tunnel">
+                                <i data-feather="play" style="width: 16px; height: 16px;"></i>
+                            </button>
+                            <button class="button stop-button" hx-post="/stop-quick-tunnel/{{ proxy_address }}:{{ app.external_port }}" data-target_url="{{ proxy_address }}:{{ app.external_port }}" data-path="{{ app.open_path }}" hx-target="#links-{{ app.hostname }}_{{ app.external_port }}-quick-tunnel" hx-swap="none" id="stop-{{ app.hostname }}_{{ app.external_port }}" disabled title="Stop Quick Tunnel">
+                                <i data-feather="square" style="width: 16px; height: 16px;"></i>
+                            </button>
+                            <button class="button refresh-button" hx-post="/refresh-quick-tunnel/{{ proxy_address }}:{{ app.external_port }}" data-target_url="{{ proxy_address }}:{{ app.external_port }}" data-path="{{ app.open_path }}" hx-target="#links-{{ app.hostname }}_{{ app.external_port }}-quick-tunnel" hx-swap="none" id="refresh-{{ app.hostname }}_{{ app.external_port }}" title="Refresh Tunnel">
+                                <i data-feather="refresh-cw" style="width: 16px; height: 16px;"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+
+    <div id="tunnel-list" class="tab-content">
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Target URL</th>
+                        <th>Tunnel URL</th>
+                        <th>Type</th>
+                        <th>Quick-Tunnel Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="tunnel-table-body">
+                    <!-- Tunnel rows will be dynamically inserted here -->
+                </tbody>
+            </table>
+        </div>
+        <div class="loading-wrapper">
+            <div class="loading-indicator" id="loading-tunnel-list"></div>
+        </div>
+        <form hx-post="/start-quick-tunnel" hx-target="body" hx-trigger="submit" hx-swap="none" class="new-tunnel-form" hx-vals='js:{url: getValidUrl()}'>
+            <input type="text" id="new-tunnel-url" name="url" placeholder="Enter target URL (e.g., {{ proxy_address }}:8000)" required>
+            <button type="submit">New Tunnel</button>
+        </form>
+    </div>
+
+    <div id="instance-logs" class="tab-content">
+        <div id="log-console"></div>
+        <button id="pause-button" onclick="togglePause()">
+            <i data-feather="pause" style="width: 24px; height: 24px;"></i>
+        </button>
+    </div>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // Global variables
+        let quickTunnels = {}
+        let namedTunnels = {}
+        let applications = {};
+
+        // Tabs Functionality
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+            if (tabId == "instance-logs") {
+                scrollToBottom();
+            }
+        }
+        
+        async function loadExistingTunnels() {
+            // Load named tunnels
+            try {
+                const response = await fetch('/get-named-tunnels');
+                if (response.ok) {
+                    const fetchedNamedTunnels = await response.json();
+                    for (const tunnel of fetchedNamedTunnels) {
+                        namedTunnels[tunnel.targetUrl] = { url: tunnel.tunnelUrl, type: 'named' };
+                    }
+                } else {
+                    console.error('Failed to load named tunnels:', await response.text());
+                }
+            } catch (error) {
+                console.error('Error loading named tunnels:', error);
+            }
+
+            // Load quick tunnels
+            try {
+                const response = await fetch('/get-all-quick-tunnels');
+                if (response.ok) {
+                    const FetchedQuickTunnels = await response.json();
+                    for (const tunnel of FetchedQuickTunnels) {
+                        quickTunnels[tunnel.targetUrl] = { url: tunnel.tunnelUrl, type: 'quick' };
+                        updateQuickTunnelLink(tunnel.targetUrl, tunnel.tunnelUrl);
+                    }
+                } else {
+                    console.error('Failed to load quick tunnels:', await response.text());
+                }
+            } catch (error) {
+                console.error('Error loading quick tunnels:', error);
+            }
+
+            updateTunnelTable();
+        }
+
+        function updateTunnelTable() {
+            const tableBody = document.getElementById('tunnel-table-body');
+            if (!tableBody) {
+                console.error('Tunnel table body not found');
+                return;
+            }
+            tableBody.innerHTML = '';
+
+            for (const [targetUrl, tunnel] of Object.entries(namedTunnels)) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${targetUrl}</td>
+                    <td><a class="link" href="${tunnel.url}" target="_blank">${tunnel.url}</a></td>
+                    <td>Named</td>
+                    <td></td>
+                `;
+                tableBody.appendChild(row);
+            }
+
+            for (const [targetUrl, tunnel] of Object.entries(quickTunnels)) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${targetUrl}</td>
+                    <td>
+                        <a class="link" href="${tunnel.url}" target="_blank">${tunnel.url}</a>
+                        <div class="loading-indicator" data-target_url="${targetUrl}"></div></td>
+                    <td>Quick</td>
+                    <td>
+                        <div class="button-group">
+                            <button class="button stop-button" hx-post="/stop-quick-tunnel/${targetUrl}" data-target_url="${targetUrl}" hx-target="body" hx-swap="none" title="Stop Quick Tunnel">
+                                <i data-feather="square" style="width: 16px; height: 16px;"></i>
+                            </button>
+                            
+                            <button class="button refresh-button" hx-post="/refresh-quick-tunnel/${targetUrl}" data-target_url="${targetUrl}" hx-target="body" hx-swap="none" title="Refresh Tunnel">
+                                <i data-feather="refresh-cw" style="width: 16px; height: 16px;"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+                htmx.process(document.body);
+            }
+
+            feather.replace();
+        }
+
+        function getValidUrl() {
+            const urlInput = document.getElementById('new-tunnel-url');
+            let url = urlInput.value.trim();
+            
+            // Check if the URL starts with http:// or https://
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                url = "http://" + url
+            }
+            
+            return url;
+        }
+
+        document.querySelector('.new-tunnel-form').addEventListener('htmx:configRequest', function(event) {
+            const url = getValidUrl();
+            if (url) {
+                event.detail.path = `/start-quick-tunnel/${encodeURIComponent(url)}`;
+            } else {
+                event.preventDefault(); // Prevent the request if URL is invalid
+            }
+        });
+
+        // Logs Functionality
+
+        let logStream;
+        let isPaused = false;
+        const logConsole = document.getElementById('log-console');
+        const pauseButton = document.getElementById('pause-button');
+
+        function togglePause() {
+            isPaused = !isPaused;
+            pauseButton.innerHTML = isPaused
+                ? '<i data-feather="play" style="width: 24px; height: 24px;"></i>'
+                : '<i data-feather="pause" style="width: 24px; height: 24px;"></i>';
+            feather.replace();
+            if (!isPaused) {
+                scrollToBottom();
+            }
+        }
+
+        function scrollToBottom() {
+            if (!isPaused) {
+                logConsole.scrollTop = logConsole.scrollHeight;
+            }
+        }
+
+        function fetchLogs() {
+            if (logStream) {
+                logStream.close();
+            }
+
+            logStream = new EventSource('/stream-logs');
+            logStream.onmessage = function(event) {
+                if (!isPaused && event.data !== "<span></span>") {
+                    logConsole.innerHTML += event.data;
+                    logConsole.scrollTop = logConsole.scrollHeight;
+
+                    while (logConsole.childElementCount > 600) {
+                        logConsole.removeChild(logConsole.firstChild);
+                    }
+                    scrollToBottom();
+                }
+            };
+        }
+
+        function updateButtonStates(target_url, hasQuickTunnel) {
+            var startButtons = document.querySelectorAll(`.button.start-button[data-target_url="${target_url}"]`);
+            var stopButtons = document.querySelectorAll(`.button.stop-button[data-target_url="${target_url}"]`);
+            var refreshButtons = document.querySelectorAll(`.button.refresh-button[data-target_url="${target_url}"]`);
+
+            if (hasQuickTunnel) {
+                startButtons.forEach(startButton => {
+                    startButton.disabled = true;
+                });
+                stopButtons.forEach(stopButton => {
+                    stopButton.disabled = false;
+                });
+                refreshButtons.forEach(refreshButton => {
+                    refreshButton.disabled = false;
+                });
+            } else {
+                startButtons.forEach(startButton => {
+                    startButton.disabled = false;
+                });
+                stopButtons.forEach(stopButton => {
+                    stopButton.disabled = true;
+                });
+                refreshButtons.forEach(refreshButton => {
+                    refreshButton.disabled = true;
+                });
+            }
+        }
+
+        function loadDirectLink(port) {
+            fetch('/get-direct-url/' + port)
+                .then(response => {
+                    if (response.status === 200) {
+                        return response.text();
+                    } else {
+                        return false;  // Set url to false if the response status is not 200
+                    }
+                })
+                .then(url => {
+                    updateDirectLink(port, url);
+                });
+        }
+
+        function loadExistingQuickTunnel(target_url) {
+            fetch('/get-existing-quick-tunnel/' + target_url)
+                .then(response => {
+                    if (response.status === 200) {
+                        return response.text();
+                    }
+                    throw new Error('No existing quick tunnel');
+                })
+                .then(tunnelUrl => {
+                    updateQuickTunnelLink(target_url, tunnelUrl);
+                    updateButtonStates(target_url, true);
+                })
+                .catch(() => {
+                    updateButtonStates(target_url, false);
+                });
+        }
+
+        function loadExistingNamedTunnel(port) {
+            fetch('/get-existing-named-tunnel/' + port)
+                .then(response => {
+                    if (response.status === 200) {
+                        return response.text();
+                    }
+                })
+                .then(tunnelUrl => {
+                    updateNamedTunnelLink(port, tunnelUrl);
+                })
+        }
+
+        function updateDirectLink(port, url) {
+            let linkElements = document.querySelectorAll(`span.link-entry.direct[data-port="${port}"]`);
+            if (url != false) {
+                linkElements.forEach(linkElement => {
+                    let path = linkElement.dataset.path
+                    full_url = url + path
+                    let separator = full_url.includes("?") ? "&" : "?";
+                    linkElement.innerHTML = '<a href="' + full_url + "{% if auth_token %}" + separator + "token={{ auth_token }}{% endif %}" + '" class="link" target="_blank">' + url + '</a>';
+                });
+            } else {
+                linkElements.forEach(linkElement => {
+                    linkElement.innerHTML = '';
+                });
+            }
+        }
+
+        function updateQuickTunnelLink(target_url, tunnelUrl) {
+            let linkElements = document.querySelectorAll(`span.link-entry.quick[data-target_url="${target_url}"]`);
+            if (tunnelUrl != false) {
+                linkElements.forEach(linkElement => {
+                    let path = linkElement.dataset.path
+                    full_url = tunnelUrl + path
+                    let separator = full_url.includes("?") ? "&" : "?";
+                    linkElement.innerHTML = '<a href="' + full_url + "{% if auth_token %}" + separator + "token={{ auth_token }}{% endif %}" + '" class="link" target="_blank">Cloudflare Quick Tunnel</a>';
+                });
+            } else {
+                linkElements.forEach(linkElement => {
+                    linkElement.innerHTML = '';
+                });
+            }
+            
+            // Update the tunnels object
+            quickTunnels[target_url] = { url: tunnelUrl, type: 'quick' };
+            updateTunnelTable();
+        }
+
+        function updateNamedTunnelLink(port, tunnelUrl) {
+            let linkElements = document.querySelectorAll(`span.link-entry.named[data-port="${port}"]`);
+            if (tunnelUrl) {
+                linkElements.forEach(linkElement => {
+                    let path = linkElement.dataset.path
+                    full_url = tunnelUrl + path
+                    let separator = full_url.includes("?") ? "&" : "?";
+                    if (linkElement.id.endsWith("external")) {
+                        
+                        linkElement.innerHTML = '<a href="' + full_url + "{% if auth_token %}" + separator + "token={{ auth_token }}{% endif %}" + '" class="link" target="_blank">' + tunnelUrl + '</a>';
+                    } else {
+                        linkElement.innerHTML = '<a href="' + tunnelUrl + '" class="link" target="_blank">' + tunnelUrl + '</a>';
+                    }
+                });
+            }
+        }
+
+
+        document.addEventListener('DOMContentLoaded', function() {
+            feather.replace();
+
+            // Load applications data
+            const applicationsData = document.getElementById('applications-data');
+            if (applicationsData) {
+                applications = JSON.parse(applicationsData.textContent);
+            }
+
+            document.querySelectorAll('.links-column .link-entry.direct').forEach(element => {
+                let port = element.dataset.port;
+                loadDirectLink(port);
+            });
+
+            document.querySelectorAll('.links-column .link-entry.named').forEach(element => {
+                let port = element.dataset.port;
+                loadExistingNamedTunnel(port);
+            });
+
+            document.querySelectorAll('.links-column .link-entry.quick').forEach(element => {
+                let target_url = element.dataset.target_url;
+                let port = target_url.split(':').pop();
+                loadExistingQuickTunnel(target_url);
+            });
+
+            loadExistingTunnels();
+            fetchLogs();
+        });
+
+        document.body.addEventListener('htmx:beforeRequest', function(event) {
+            if (event.target.className == "button start-button" || event.target.className == "button refresh-button") {
+                let target_url = event.detail.elt.dataset.target_url
+                let loadingIndicators = document.querySelectorAll(`div.loading-indicator[data-target_url="${target_url}"]`);
+                
+                loadingIndicators.forEach(loadingIndicator => {
+                    loadingIndicator.style.display = 'flex'
+                });
+            } else if (event.target.className == "new-tunnel-form") {
+                let loadingIndicator = document.querySelector('div#loading-tunnel-list.loading-indicator');
+
+                loadingIndicator.style.display = 'flex'
+            }
+        });
+    
+
+        document.body.addEventListener('htmx:afterOnLoad', function(event) {
+            // We are somewhat misusing htmx, but it is useful for many things.
+            // Test whether the response is json
+            try {
+                json = JSON.parse(event.detail.xhr.responseText)
+            } catch {
+                json = false
+            }
+
+            // We are not doing much work here, so we will keep things simple for now
+            if (json) {
+                if (event.target.className == "button start-button" || event.target.className == "button refresh-button") {
+                    let target_url = event.detail.elt.dataset.target_url
+                    let quickTunnelElements = document.querySelectorAll(`span.link-entry.quick[data-target_url="${target_url}"]`);
+                    let loadingIndicators = document.querySelectorAll(`div.loading-indicator[data-target_url="${target_url}"]`);
+                    
+                    if (event.detail.xhr.status == 200) {
+                        updateQuickTunnelLink(target_url, json.tunnel_url);
+                        updateButtonStates(target_url, true);
+                        showToast('Quick tunnel started successfully', 'success');
+                    }
+                    
+                    loadingIndicators.forEach(loadingIndicator => {
+                         loadingIndicator.style.display = 'none'
+                    });
+                }
+
+                if (event.target.className == "new-tunnel-form") {
+                    let target_url = event.target[0].value;
+                    let loadingIndicator = document.querySelector('div#loading-tunnel-list.loading-indicator');
+                    let inputBox = document.querySelector('input#new-tunnel-url');
+                    
+                    if (event.detail.xhr.status == 200) {
+                        updateQuickTunnelLink(target_url, json.tunnel_url);
+                        updateButtonStates(target_url, true);
+                        showToast('Quick tunnel started successfully', 'success');
+                    }
+                    
+                    inputBox.value = "";
+                    loadingIndicator.style.display = 'none'
+                }
+
+                if (event.target.className == "button stop-button") {
+                    let target_url = event.detail.elt.dataset.target_url
+                    let quickTunnelElements = document.querySelectorAll(`span.link-entry.quick[data-target_url="${target_url}"]`);
+                    let loadingIndicators = document.querySelectorAll(`div.loading-indicator[data-target_url="${target_url}"]`);
+                    if (event.detail.xhr.status == 200) {
+                        quickTunnelElements.forEach(quickTunnelElement => {
+                            quickTunnelElement.innerHTML = '';
+                        });
+                        delete quickTunnels[target_url];
+                        updateButtonStates(target_url, false);
+                        showToast('Quick tunnel stopped successfully', 'success');
+                    }
+                    
+                    loadingIndicators.forEach(loadingIndicator => {
+                         loadingIndicator.style.display = 'none'
+                    });
+                }
+            }
+           
+            
+            updateTunnelTable();
+            feather.replace();
+        });
+
+
+        // Utility functions
+
+        function showToast(message, type) {
+            const toastContainer = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.classList.add('toast', `toast-${type}`);
+            toast.textContent = message;
+
+            toastContainer.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 100);
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    toastContainer.removeChild(toast);
+                }, 300);
+            }, 3000);
+        }
+
+    </script>
+</body>
+</html>
