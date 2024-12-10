@@ -29,7 +29,7 @@ type="${JUPYTER_TYPE:-notebook}"
 
 # Ensure the default Python used by Jupyter is our venv
 # Token not specified because auth is handled through Caddy
-. ${DATA_DIR}venv/main/bin/activate
+. ${DATA_DIRECTORY}venv/main/bin/activate
 jupyter "${type,,}" \
         --allow-root \
         --ip=127.0.0.1 \
@@ -43,7 +43,7 @@ jupyter "${type,,}" \
         --ServerApp.allow_origin='*' \
         --ServerApp.allow_credentials=True \
         --ServerApp.root_dir=/ \
-        --ServerApp.preferred_dir="$DATA_DIR" \
+        --ServerApp.preferred_dir="$DATA_DIRECTORY" \
         --ServerApp.terminado_settings="{'shell_command': ['/bin/bash']}" \
         --ContentsManager.allow_hidden=True \
         --KernelSpecManager.ensure_native_kernel=False 2>&1 | tee -a "/var/log/portal/${PROC_NAME}.log"

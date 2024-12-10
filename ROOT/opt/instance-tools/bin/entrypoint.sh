@@ -17,7 +17,7 @@ if ! grep -q "CONTAINER_ID" /etc/environment; then
     # Populate /etc/environment - Skip HOME directory
     env | grep -v "^HOME=" > /etc/environment
     # Ensure users are dropped into the venv on login.  Must be after /.launch has updated PS1 
-    echo 'cd ${DATA_DIR} && source ${DATA_DIR}/venv/main/bin/activate' | tee -a /root/.bashrc /home/user/.bashrc
+    echo 'cd ${DATA_DIRECTORY} && source ${DATA_DIRECTORY}/venv/main/bin/activate' | tee -a /root/.bashrc /home/user/.bashrc
     # Warn CLI users if the container provisioning is not yet complete. Red >>>
     echo '[[ -f /.provisioning ]] && echo -e "\e[91m>>>\e[0m Instance provisioning is not yet complete.\n\e[91m>>>\e[0m Required software may not be ready.\n\e[91m>>>\e[0m See /var/log/portal/provisioning.log or the Instance Portal web app for progress updates\n\n"' | tee -a /root/.bashrc /home/user/.bashrc
 fi
@@ -29,7 +29,7 @@ touch /.provisioning
 # Let the 'user' account connect via SSH
 /opt/instance-tools/bin/propagate_ssh_keys.sh
 
-# Ensure files in $DATA_DIR (usually /workspace/) are on the top overlayfs layer
+# Ensure files in $DATA_DIRECTORY (usually /workspace/) are on the top overlayfs layer
 /opt/instance-tools/bin/hydrate_data_dir.sh &
 
 # Generate the Jupyter certificate if run in SSH/Args Jupyter mode

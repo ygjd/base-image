@@ -32,7 +32,7 @@ LABEL maintainer="Vast.ai Inc <contact@vast.ai>"
 SHELL ["/bin/bash", "-c"]
 
 # Vast.ai environment variables used for Jupyter & Data sync
-ENV DATA_DIR=/workspace/
+ENV DATA_DIRECTORY=/workspace/
 # Ubuntu 24.04 requires this for compatibility with out /.launch script
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 
@@ -112,8 +112,8 @@ RUN \
     mkdir -m 700 -p /run/user/1001 && \
     chown 1001:1001 /run/user/1001 && \
     mkdir /run/dbus && \
-    mkdir ${DATA_DIR} && \
-    chown 1001:1001 ${DATA_DIR}
+    mkdir ${DATA_DIRECTORY} && \
+    chown 1001:1001 ${DATA_DIRECTORY}
 
 # Add the 'service portal' web app into this container to avoid needing to specify in onstart.  
 # We will launch each component with supervisor - Not the standalone launch script.
@@ -156,19 +156,19 @@ RUN \
 
 RUN \
     set -eo pipefail && \
-    mkdir -p ${DATA_DIR}/venv && \
+    mkdir -p ${DATA_DIRECTORY}/venv && \
     # Create a virtual env where we will install our packages.  It's portable unlike the system site-packages
-    python3 -m venv ${DATA_DIR}/venv/main && \
-    ${DATA_DIR}/venv/main/bin/pip install --no-cache-dir \
+    python3 -m venv ${DATA_DIRECTORY}/venv/main && \
+    ${DATA_DIRECTORY}/venv/main/bin/pip install --no-cache-dir \
         wheel \
         huggingface_hub[cli] \
         ipykernel \
         ipywidgets && \
-    ${DATA_DIR}/venv/main/bin/python -m ipykernel install \
+    ${DATA_DIRECTORY}/venv/main/bin/python -m ipykernel install \
         --name="main" \
         --display-name="Python3 (main venv)" && \
     # Re-add as default.  We don't want users accidentally installing packages in the system python
-    ${DATA_DIR}/venv/main/bin/python -m ipykernel install \
+    ${DATA_DIRECTORY}/venv/main/bin/python -m ipykernel install \
         --name="python3" \
         --display-name="Python3 (ipykernel)"
 
@@ -178,4 +178,4 @@ ENV PATH=/opt/instance-tools/bin:${PATH}
 
 CMD ["entrypoint.sh"]
 
-WORKDIR ${DATA_DIR}
+WORKDIR ${DATA_DIRECTORY}

@@ -14,7 +14,7 @@ Pre-built images generally extend [nvidia/cuda:[CUDA_VERSION]-cudnn-devel-ubuntu
 - Pre-installs the [Vast CLI](https://pypi.org/project/vastai/) tool for easy instance management from inside the container.
 - Provides TLS, secure tunnels & authentication mechanism for web apps via the [Instance Portal](#instance-portal).
 - Application management via [supervisor](https://supervisord.readthedocs.io/en/latest/).
-- Stores the main Python virtual environment in `$DATA_DIR` (generally `/workspace`)
+- Stores the main Python virtual environment in `$DATA_DIRECTORY` (generally `/workspace`)
 - Optionally 'Hydrates' the data directory on first boot moving all files to the top overlayfs layer making the entire directory and virtual environment portable between instances.
 - Adds and starts additional useful applications to simplify working with remote instances.
 - Adds a non-root user `user` to simplify launching applications which refuse to run as root.
@@ -105,7 +105,7 @@ We run a fairly straightforward script to set up the instance.  The process brie
 - Store all environment variables in `/etc/environment` so they will be available to login shells.
 - Create a lock file at `/.provisioning` to be used in Supervisor startup scripts to determine whether it is safe to launch
 - Copy root user SSH keys to the user account to enable non-root login.
-- Touch all files in `$DATA_DIR` to promote them to the top overlayfs layer (background process).
+- Touch all files in `$DATA_DIRECTORY` to promote them to the top overlayfs layer (background process).
 - Generates TLS certificate if not already present.
 - Launches Supervisor process in the background
 - Download and execute remote file if defined in `PROVISIONING_SCRIPT` variable
@@ -176,7 +176,7 @@ Naturally, you can use this image as a base for building your own Docker image w
 FROM vastai/vast-base:<TAG>
 ```
 
-Then install your required software into the `${DATA_DIR}venv/main` venv.  All you will need to do next is supply the Supervisor config files and an appropriate wrapper scripts to launch any additional services.  See the existing launchers for Jupyter and Syncthing for guidance and inspiration.
+Then install your required software into the `${DATA_DIRECTORY}venv/main` venv.  All you will need to do next is supply the Supervisor config files and an appropriate wrapper scripts to launch any additional services.  See the existing launchers for Jupyter and Syncthing for guidance and inspiration.
 
 ## Dynamic Templates
 
@@ -185,7 +185,7 @@ While it's usually best to build all required software into the Docker image, so
 In the script you'll want to activate the main virtual environment:
 
 ```
-. ${DATA_DIR}venv/main/bin/activate
+. ${DATA_DIRECTORY}venv/main/bin/activate
 ```
 
 Then simply install any required software packages and echo/download the required Supervisor config and startup scripts.
@@ -198,6 +198,10 @@ supervisorctl reload
 
 ## Template Links
 
+These templates exist to demonstrate the default configuration.  They may be useful as a starting point 
+
 [Jupyter Launch Mode](https://cloud.vast.ai/?ref_id=62897&creator_id=62897&name=Vast%20Base%20Image)
+
 [SSH Launch Mode](https://cloud.vast.ai/?ref_id=62897&creator_id=62897&name=Vast%20Base%20Image%20-%20SSH)
+
 [Args Launch Mode](https://cloud.vast.ai/?ref_id=62897&creator_id=62897&name=Vast%20Base%20Image%20-%20ARGS)
