@@ -32,7 +32,6 @@ LABEL maintainer="Vast.ai Inc <contact@vast.ai>"
 SHELL ["/bin/bash", "-c"]
 
 # Vast.ai environment variables used for Jupyter & Data sync
-ENV JUPYTER_DIR=/
 ENV DATA_DIR=/workspace/
 # Ubuntu 24.04 requires this for compatibility with out /.launch script
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
