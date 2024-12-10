@@ -137,7 +137,7 @@ RUN \
 # Initial config will write /etc/portal.yaml
 # Start with only Instance Portal, Jupyter & Syncthing
 # Any services we define in /opt/supervisor-scripts/bin and /etc/supervisor/conf.d can use the config at /etc/portal.yaml to defer/disable startup
-ENV PORTAL_CONFIG="localhost:1111:11111:/:Instance Portal|localhost:8080:18080:/:Jupyter|localhost:8384:18384:/:Syncthing"
+ENV PORTAL_CONFIG="localhost:1111:11111:/:Instance Portal|localhost:8080:8080:/:Jupyter|localhost:8384:18384:/:Syncthing"
 
 # Populate the system Python environment with useful tools.  Add jupyter to speed up instance creation and allow configuration in advance
 RUN \

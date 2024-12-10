@@ -10,6 +10,7 @@
 [[ ${AUTOSCALER,,} = 'true' ]] && echo "Refusing to start ${PROC_NAME} (AUTOSCALER=true)" | tee -a "/var/log/portal/${PROC_NAME}.log" && exit
 [[ $OPEN_BUTTON_PORT != "1111" ]] && echo "Refusing to start ${PROC_NAME} (OPEN_BUTTON_PORT!=1111)" | tee -a "/var/log/portal/${PROC_NAME}.log" && exit
 [[ -z $VAST_TCP_PORT_8080 ]] && echo "Refusing to start ${PROC_NAME} (VAST_TCP_PORT_8080 not set)" | tee -a "/var/log/portal/${PROC_NAME}.log" && exit
+[[ -f /.launch ]] && grep -qi jupyter /.launch &&  echo "Refusing to start ${PROC_NAME} (/.launch managing)" | tee -a "/var/log/portal/${PROC_NAME}.log" && exit
 
 # User can configure startup by removing the reference in /etc.portal.yaml - So wait for that file and check it
 while [ ! -f "$(realpath -q /etc/portal.yaml 2>/dev/null)" ]; do
@@ -22,11 +23,6 @@ search_pattern=$(echo "$PROC_NAME" | sed 's/[ _-]/[ _-]/g')
 if ! grep -qiE "^[^#].*${search_pattern}" /etc/portal.yaml; then
     echo "Skipping startup for ${PROC_NAME} (not in /etc/portal.yaml)" | tee -a "/var/log/portal/${PROC_NAME}.log"
     exit 0
-fi
-
-# Re-enable the executable we hid in entrypoint.sh
-if jupyter_hidden=$(which jupyter.hidden); then
-    mv "${jupyter_hidden}" "${jupyter_hidden%.hidden}"
 fi
 
 type="${JUPYTER_TYPE:-notebook}"

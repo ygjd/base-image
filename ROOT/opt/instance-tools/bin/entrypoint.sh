@@ -5,14 +5,11 @@ if [ -z "${VAST_TCP_PORT_8080}" ]; then
     PORTAL_CONFIG=$(echo "$PORTAL_CONFIG" | tr '|' '\n' | grep -vi jupyter | tr '\n' '|' | sed 's/|$//')
 fi
 
-# If we've specified Jupyter in Portal config, we need to hide the executable before ./launch can start it
-# If you want the normal Jupyter startup, just remove the reference to Jupyter in Portal config
-if (([[ -f /etc/portal.yaml ]] && grep -qiE "^[^#].*jupyter" /etc/portal.yaml) || echo $PORTAL_CONFIG | grep -qiE "^[^#].*jupyter") && jupyter=$(which jupyter); then
-    PORTAL_CONFIG="$(echo "$PORTAL_CONFIG" | sed 's#localhost:8080:8080:/:Jupyter#localhost:8080:18080:/:Jupyter#')"
-    # hide the binary
-    mv "${jupyter}" "${jupyter}.hidden"
-    # In case we did not manage to prevent startup of Jupyter, we will kill it anyway
-    pkill -9 jupyter
+# Ensure correct port mappings for Jupyter 
+if [[ -f /.launch ]] && grep -qi jupyter /.launch; then
+    PORTAL_CONFIG="$(echo "$PORTAL_CONFIG" | sed 's#localhost:8080:18080#localhost:8080:8080#')"
+else
+    PORTAL_CONFIG="$(echo "$PORTAL_CONFIG" | sed 's#localhost:8080:8080#localhost:8080:18080#')"
 fi
 
 # First run...
@@ -61,7 +58,7 @@ if [ ! -f  /etc/openssl-san.cnf ] || ! grep -qi vast /etc/openssl-san.cnf; then
     curl --header 'Content-Type: application/octet-stream' --data-binary @//etc/instance.csr -X POST "https://console.vast.ai/api/v0/sign_cert/?instance_id=${CONTAINER_ID:-${VAST_CONTAINERLABEL#C.}}" > /etc/instance.crt;
 fi
 
-# Now we run supervisord - Put it in the background so provisioning can be monitord in Instance Portal
+# Now we run supervisord - Put it in the background so provisioning can be monitored in Instance Portal
 supervisord \
     -n \
     -u root \

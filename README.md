@@ -1,11 +1,5 @@
 # Vast.ai Base Docker Image
 
-## Status
-
-We do not yet have a DockerHub repo.  Update this document when we do.  Demo builds currently at https://hub.docker.com/repository/docker/robatvastai/vast_base/tags
-
-Demo Template - https://cloud.vast.ai?ref_id=62897&template_id=c5805c40ebcc0c351dc494424b370a67
-
 ## About
 
 This repository contains the Dockerfile and associated configuration files for building a base Docker image suitable for use at [Vast.ai](https://vast.ai)
@@ -69,7 +63,7 @@ On the first start of an instance, the Instance Portal configuration file `/etc/
 The default is:
 
 ```
-PORTAL_CONFIG="localhost:1111:11111:/:Instance Portal|localhost:8080:18080:/:Jupyter|localhost:8384:18384:/:Syncthing"
+PORTAL_CONFIG="localhost:1111:11111:/:Instance Portal|localhost:8080:8080:/:Jupyter|localhost:8384:18384:/:Syncthing"
 ```
 
 Which translates to:
@@ -85,7 +79,7 @@ applications:
   Jupyter:
     hostname: localhost
     external_port: 8080
-    internal_port: 18080
+    internal_port: 8080 # Internal port = External Port: No proxying, only links
     open_path: /
     name: Jupyter
   Syncthing:
@@ -148,16 +142,11 @@ Full documentation for Supervisor can ve viewed at https://supervisord.readthedo
 
 ### Jupyter
 
-Vast, by default, will start Jupyter from the instance launch script at `/.launch` when the instance in run with the Jupyter launch mode.  When Jupyter has been configured in the instance portal, the default launch will be interrupted and Supervisor will take over running Jupyter.
+Jupyter will only start via Instance Portal if the template is launched in SSH or Args modes.  This is mainly included for debugging other launch modes or where you need to configure Jupyter's startup options.
 
-When Jupyter is configured in this way, it will also be available in both SSH and Args launch modes although the main UI buttons will not be present.  This is particularly useful for Args launch as you will be able to access a terminal for debugging.
+To enable this, the internal port in `PORTAL_CONFIG` will need to be set to `18080` - This is handled automatically by the entrypoint script but mentioned here for clarity.
 
-There are some key differences in the configuration when launching Jupyter via Instance portal:
-
-- No token is defined.  Authentication & TLS is handled by Caddy.
-- The file launcher will start in ${DATA_DIR} but navigation to the `/` directory is still possible
-- Hidden files can be displayed in the file browser
-- The default Python version will be `$DATA_DIR/venv/main/bin/python`
+When the template type is Jupyter, management of the Jupyter process will be left to the launch script at `/.launch` and this process will exit.
 
 You may wish to build this image with alternative configuration options - These can be achieved by editing the file `ROOT/opt/supervisor-scripts/jupyter.sh`
 
@@ -207,3 +196,8 @@ Finally, issue the reload instruction to Supervisor:
 supervisorctl reload
 ```
 
+## Template Links
+
+[Jupyter Launch Mode]()
+[SSH Launch Mode]()
+[Args Launch Mode]()
