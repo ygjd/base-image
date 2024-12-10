@@ -21,11 +21,11 @@ cloudflared_account_process: Optional[asyncio.subprocess.Process] = None
 
 # Function to fetch the public IP address
 def get_public_ip():
-    # We should have this from the first request after clicking the Open button
+    # We should have this from the first request after clicking the Open button - Use the less reliable $PUBLIC_IPADDR otherwise
     if public_ipaddr is not None:
         return public_ipaddr
     else:
-        raise HTTPException(status_code=500, detail="Public IP not set")
+        return os.environ.get('PUBLIC_IPADDR')
 
 @app.put("/set-public-ip/{ip}")
 def set_external_ip(ip: str):
@@ -76,44 +76,66 @@ class QuickTunnel:
         self._print_task = None
 
     def get_parsed_target(self, target_url: str):
+        """Parse and normalize target URL."""
         if not target_url.startswith(('http://', 'https://')):
             target_url = 'http://' + target_url
         
         return urlparse(target_url)
 
-
-    async def start(self):
+    async def start(self, timeout: int = 30):
         """Start the cloudflared process and capture the tunnel URL."""
-        self.process = await asyncio.create_subprocess_exec(
-            CLOUDFLARED_BIN, '--no-tls-verify', '--url', self.target.geturl(),
-            env = os.environ.copy(),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT
-        )
-        
-        while True:
-            line = await self.process.stdout.readline()
-            if not line:
-                break
-            line_str = line.decode().strip()
-            print(f"[{self.target.geturl()}] {line_str}")
-            match = re.search(r'(https://[^\s]+.trycloudflare.com)', line_str)
-            if match:
-                self.tunnel_url = match.group(1)
-                break
-        
-        if not self.tunnel_url:
-            raise Exception("Failed to start tunnel")
-        
-        self._print_task = asyncio.create_task(self._print_output())
+        try:
+            self.process = await asyncio.create_subprocess_exec(
+                CLOUDFLARED_BIN, '--no-tls-verify', '--url', self.target.geturl(),
+                env = os.environ.copy(),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT
+            )
+            
+            # Create a task for getting the tunnel URL
+            async def wait_for_tunnel_url():
+                while True:
+                    if not self.process or self.process.stdout is None:
+                        raise Exception("Process or stdout is None")
+                        
+                    line = await self.process.stdout.readline()
+                    if not line:
+                        raise Exception("Process stopped without providing tunnel URL")
+                        
+                    line_str = line.decode().strip()
+                    print(f"[{self.target.geturl()}] {line_str}")
+                    match = re.search(r'(https://[^\s]+.trycloudflare.com)', line_str)
+                    if match:
+                        self.tunnel_url = match.group(1)
+                        return self.tunnel_url
+
+            # Wait for URL with timeout
+            try:
+                await asyncio.wait_for(wait_for_tunnel_url(), timeout)
+            except asyncio.TimeoutError:
+                await self.stop()
+                raise TimeoutError(f"Tunnel didn't start within {timeout} seconds")
+
+            if not self.tunnel_url:
+                raise Exception("Failed to start tunnel")
+            
+            self._print_task = asyncio.create_task(self._print_output())
+            
+        except Exception as e:
+            await self.stop()
+            raise Exception(f"Failed to start tunnel: {str(e)}")
 
     async def _print_output(self):
         """Continuously print the process output."""
         while True:
             try:
+                if not self.process or self.process.stdout is None:
+                    break
+                    
                 line = await self.process.stdout.readline()
                 if not line:
                     break
+                    
                 print(f"[{self.target.geturl()}] {line.decode().strip()}")
             except asyncio.CancelledError:
                 break
@@ -125,10 +147,18 @@ class QuickTunnel:
         """Stop the tunnel and printing."""
         if self._print_task:
             self._print_task.cancel()
-            await self._print_task
+            try:
+                await self._print_task
+            except asyncio.CancelledError:
+                pass
+                
         if self.process:
-            self.process.terminate()
-            await self.process.wait()
+            try:
+                self.process.terminate()
+                await asyncio.wait_for(self.process.wait(), timeout=5)
+            except asyncio.TimeoutError:
+                self.process.kill()  # Force kill if it doesn't terminate
+                await self.process.wait()
 
     async def __aenter__(self):
         await self.start()
@@ -155,39 +185,69 @@ class CloudflareDaemon:
         self.process: Optional[asyncio.subprocess.Process] = None
         self._print_task = None
 
-    async def start(self):
-        """Start the cloudflared process."""
-        self.process = await asyncio.create_subprocess_exec(
-            CLOUDFLARED_BIN, 'tunnel', '--metrics', self.metrics, 'run', '--token', self.token,
-            env = os.environ.copy(),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT
-        )
-        
-        self._print_task = asyncio.create_task(self._print_output())
+    async def start(self, timeout: int = 30):
+        """Start the cloudflared process and wait for startup confirmation."""
+        try:
+            async def start_process():
+                self.process = await asyncio.create_subprocess_exec(
+                    CLOUDFLARED_BIN, 'tunnel', '--metrics', self.metrics, 
+                    'run', '--token', self.token,
+                    env = os.environ.copy(),
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.STDOUT
+                )
+                
+                # Wait for first line of output to confirm startup
+                if self.process.stdout:
+                    first_line = await self.process.stdout.readline()
+                    if not first_line:
+                        raise Exception("Process stopped immediately after startup")
+                    print(f"Cloudflare daemon started: {first_line.decode().strip()}")
+
+            # Wait for process to start with timeout
+            try:
+                await asyncio.wait_for(start_process(), timeout)
+            except asyncio.TimeoutError:
+                await self.stop()
+                raise TimeoutError(f"Daemon didn't start within {timeout} seconds")
+
+            self._print_task = asyncio.create_task(self._print_output())
+            
+        except Exception as e:
+            await self.stop()
+            raise Exception(f"Failed to start cloudflared daemon: {str(e)}")
 
     async def _print_output(self):
         """Continuously print the process output."""
         while True:
             try:
+                if not self.process or self.process.stdout is None:
+                    break
                 line = await self.process.stdout.readline()
                 if not line:
                     break
-                print(f"[{self.target_url}] {line.decode().strip()}")
+                print(f"[cloudflared] {line.decode().strip()}")
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                print(f"Error reading output for {self.target_url}: {e}")
+                print(f"Error reading output: {e}")
                 break
 
     async def stop(self):
         """Stop the tunnel and printing."""
         if self._print_task:
             self._print_task.cancel()
-            await self._print_task
+            try:
+                await self._print_task
+            except asyncio.CancelledError:
+                pass
         if self.process:
-            self.process.terminate()
-            await self.process.wait()
+            try:
+                self.process.terminate()
+                await asyncio.wait_for(self.process.wait(), timeout=5)
+            except asyncio.TimeoutError:
+                self.process.kill()  # Force kill if it doesn't terminate
+                await self.process.wait()
 
     async def __aenter__(self):
         await self.start()
@@ -356,19 +416,30 @@ async def get_named_tunnel(port: int):
 
 @app.on_event("startup")
 async def startup_event():
-    # Monitor quick tunnels in case user kills them
-    monitor_task = asyncio.create_task(monitor_processes())
+    try:
+        # Monitor quick tunnels in case user kills them
+        monitor_task = asyncio.create_task(monitor_processes())
 
-    # Create the main cloudflared process to handle named tunnels
-    global cloudflared_account_process
-    if CF_TUNNEL_TOKEN:
-        cloudflared_account_process = CloudflareDaemon(CF_TUNNEL_TOKEN)
-        await cloudflared_account_process.start()
-        print("Named tunnel process started")
-    
-    default_tunnel = await get_or_create_quick_tunnel("https://localhost:1111")
-    if default_tunnel:
-        print(f"Default Tunnel started for port 1111 - {default_tunnel.tunnel_url}?token={os.environ.get('OPEN_BUTTON_TOKEN')}")
+        # Create the main cloudflared process to handle named tunnels
+        global cloudflared_account_process
+        if CF_TUNNEL_TOKEN:
+            try:
+                cloudflared_account_process = CloudflareDaemon(CF_TUNNEL_TOKEN)
+                await cloudflared_account_process.start()
+                print("Named tunnel process started")
+            except Exception as e:
+                print(f"Failed to start named tunnel process: {str(e)}")
+        
+        try:
+            default_tunnel = await get_or_create_quick_tunnel("https://localhost:1111")
+            if default_tunnel:
+                print(f"Default Tunnel started for port 1111 - {default_tunnel.tunnel_url}?token={os.environ.get('OPEN_BUTTON_TOKEN')}")
+        except Exception as e:
+            print(f"Failed to create default tunnel: {str(e)}")
+            # Sometimes Cloudflare Tunnels don't work (No SLA) - This must never bee fatal
+    except Exception as e:
+        print(f"Startup failed: {str(e)}")
+        raise
 
 @app.on_event("shutdown")
 async def shutdown_event():
