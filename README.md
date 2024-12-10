@@ -103,7 +103,7 @@ We run a fairly straightforward script to set up the instance.  The process brie
 
 - Check whether the user wants Supervisor to manage Jupyter and modify the config to support it.
 - Store all environment variables in `/etc/environment` so they will be available to login shells.
-- Create a lock file at `/.provisioning` to be used in Supervisor startup scripts to determine whether it is safe to launch`
+- Create a lock file at `/.provisioning` to be used in Supervisor startup scripts to determine whether it is safe to launch
 - Copy root user SSH keys to the user account to enable non-root login.
 - Touch all files in `$DATA_DIR` to promote them to the top overlayfs layer (background process).
 - Generates TLS certificate if not already present.
@@ -162,7 +162,7 @@ Cron is enabled in all launch modes.  Simply add entries to your crontab if you 
 
 This image can be built on CPU-only systems.  A GPU is only required at runtime, not for building.
 
-Building is very straightforward.  Simply clone the repository, `cd vast_base` and then issue the build command.
+Building is very straightforward.  Simply clone the repository, `cd vast-base` and then issue the build command.
 
 ```
 docker buildx build .
@@ -173,10 +173,10 @@ You can configure the base image for this image by passing a `BASE_IMAGE` build 
 Naturally, you can use this image as a base for building your own Docker image with additional features.  Simply start your Dockerfile with 
 
 ```
-FROM vastai/vast_base:<TAG>
+FROM vastai/vast-base:<TAG>
 ```
 
-And install your required software into the `${DATA_DIR}venv/main` venv.  All you will need to do next is supply the Supervisor config files and an appropriate wrapper scripts to launch any additional services.  See the existing launchers for Jupyter and Syncthing for guidance and inspiration.
+Then install your required software into the `${DATA_DIR}venv/main` venv.  All you will need to do next is supply the Supervisor config files and an appropriate wrapper scripts to launch any additional services.  See the existing launchers for Jupyter and Syncthing for guidance and inspiration.
 
 ## Dynamic Templates
 
@@ -198,6 +198,6 @@ supervisorctl reload
 
 ## Template Links
 
-[Jupyter Launch Mode]()
-[SSH Launch Mode]()
-[Args Launch Mode]()
+[Jupyter Launch Mode](https://cloud.vast.ai/?ref_id=62897&creator_id=62897&name=Vast%20Base%20Image)
+[SSH Launch Mode](https://cloud.vast.ai/?ref_id=62897&creator_id=62897&name=Vast%20Base%20Image%20-%20SSH)
+[Args Launch Mode](https://cloud.vast.ai/?ref_id=62897&creator_id=62897&name=Vast%20Base%20Image%20-%20ARGS)
