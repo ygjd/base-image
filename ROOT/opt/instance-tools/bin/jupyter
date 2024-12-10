@@ -17,7 +17,7 @@ shift
 set -- "$type" \
   "--ContentsManager.allow_hidden=True" \
   "--ServerApp.root_dir=/" \
-  "--ServerApp.preferred_dir=${JUPYTER_DIR:-${DATA_DIR:-/}" \
+  "--ServerApp.preferred_dir=${JUPYTER_DIR:-${DATA_DIR:-/}}" \
   "$@"
 
 jupyter "$@" 2>&1 | tee -a /var/log/portal/jupyter.log
