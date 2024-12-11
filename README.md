@@ -11,6 +11,7 @@ Pre-built images generally extend [nvidia/cuda:[CUDA_VERSION]-cudnn-devel-ubuntu
 ## Features
 
 - Runs in Jupyter, SSH and Args launch modes
+- CUDA, OpenCL & ROCm supported
 - Pre-installs the [Vast CLI](https://pypi.org/project/vastai/) tool for easy instance management from inside the container.
 - Provides TLS, secure tunnels & authentication mechanism for web apps via the [Instance Portal](#instance-portal).
 - Application management via [supervisor](https://supervisord.readthedocs.io/en/latest/).
@@ -157,6 +158,10 @@ Syncthing is a peer-to-peer file synchronization service.  It allows for keeping
 ### Cron
 
 Cron is enabled in all launch modes.  Simply add entries to your crontab if you need job scheduling.
+
+### NVM
+
+Node version manager is installed to assist with running node applications.  The latest LTS version of node is installed during the image build.
 
 ## Building the Image
 

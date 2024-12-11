@@ -1,6 +1,9 @@
 # Choose a base image.  Sensible options include ubuntu:xx.xx, nvidia/cuda:xx-cuddnx
 ARG BASE_IMAGE=nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
 
+# We install NVM because the node version packaged by Ubuntu is generally ancient
+ARG NODE_VERSION=22.12.0
+
 ### Build Caddy with single port TLS redirect
 FROM golang:1.22 AS caddy_builder
 
@@ -50,12 +53,16 @@ RUN \
     set -eo pipefail && \
     ([ $TARGETARCH = "arm64" ] && echo "Skipping i386 architecture for ARM builds" || dpkg --add-architecture i386) && \
     apt-get update && \
+    apt-get upgrade -y && \
     apt-get install --no-install-recommends -y \
         # Base system utilities
+        acl \
         ca-certificates \
         gpg-agent \
         software-properties-common \
         openssh-server \
+        locales \
+        lsb-release \
         curl \
         wget \
         sudo \
@@ -64,15 +71,23 @@ RUN \
         less \
         jq \
         git \
+        git-lfs \
         man \
+        tzdata \
+        # Display
+        fonts-dejavu \
+        fonts-freefont-ttf \
+        fonts-ubuntu \
+        ffmpeg \
+        libgl1-mesa-glx \
         # System monitoring & debugging
         htop \
         iotop \
         strace \
+        libtcmalloc-minimal4 \
         lsof \
         procps \
         psmisc \
-        iproute2 \
         nvtop \
         # Development essentials
         build-essential \
@@ -84,6 +99,9 @@ RUN \
         python3-pip \
         # Network utilities
         netcat \
+        net-tools \
+        dnsutils \
+        iproute2 \
         iputils-ping \
         traceroute \
         # File management
@@ -91,15 +109,29 @@ RUN \
         rclone \
         zip \
         unzip \
+        xz-utils \
+        zstd \
         # Performance analysis
-        perf-tools-unstable \
         linux-tools-common \
         # Process management
         supervisor \
         cron \
         # Required for cron logging
-        rsyslog
-
+        rsyslog \
+        # OpenCL General
+        clinfo \
+        pocl-opencl-icd \
+        opencl-headers \
+        ocl-icd-dev \
+        ocl-icd-opencl-dev && \
+    # Install OpenCL Runtime based on available hardware
+    if command -v rocm-smi >/dev/null 2>&1; then \
+        apt-get install -y rocm-opencl-runtime; \
+    else \
+        DRIVER_VERSION=$(echo "$NVIDIA_REQUIRE_CUDA" | grep -oP 'driver>=\K\d+' | sort -nr | head -n1) && \
+        apt-get install -y libnvidia-compute-${DRIVER_VERSION}; \
+    fi && \
+    apt-get clean -y
 
 # Add a normal user account - Some applications don't like to run as root so we should save our users some time.  Give it unfettered access to sudo
 RUN \
@@ -113,7 +145,20 @@ RUN \
     chown 1001:1001 /run/user/1001 && \
     mkdir /run/dbus && \
     mkdir ${DATA_DIRECTORY} && \
-    chown 1001:1001 ${DATA_DIRECTORY}
+    chown 1001:1001 ${DATA_DIRECTORY} && \
+    chmod g+s ${DATA_DIRECTORY} && \
+    chmod 775 ${DATA_DIRECTORY} && \
+    setfacl -d -m g:user:rw- ${DATA_DIRECTORY}
+
+# Install NVM for node version management
+RUN \
+    set -eo pipefail && \
+    git clone https://github.com/nvm-sh/nvm.git /opt/nvm && \
+    (cd /opt/nvm/ && git checkout `git describe --abbrev=0 --tags --match "v[0-9]*" $(git rev-list --tags --max-count=1)`) && \
+    source /opt/nvm/nvm.sh && \
+    nvm install --lts && \
+    echo "source /opt/nvm/nvm.sh" >> /root/.bashrc && \
+    echo "source /opt/nvm/nvm.sh" >> /home/user/.bashrc
 
 # Add the 'service portal' web app into this container to avoid needing to specify in onstart.  
 # We will launch each component with supervisor - Not the standalone launch script.
