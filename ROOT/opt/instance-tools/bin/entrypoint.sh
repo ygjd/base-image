@@ -7,13 +7,15 @@ fi
 
 # Ensure correct port mappings for Jupyter 
 if [[ -f /.launch ]] && grep -qi jupyter /.launch; then
-    PORTAL_CONFIG="$(echo "$PORTAL_CONFIG" | sed 's#localhost:8080:18080#localhost:8080:8080#')"
+    PORTAL_CONFIG="$(echo "$PORTAL_CONFIG" | sed 's#localhost:8080:18080#localhost:8080:8080#g')"
 else
-    PORTAL_CONFIG="$(echo "$PORTAL_CONFIG" | sed 's#localhost:8080:8080#localhost:8080:18080#')"
+    PORTAL_CONFIG="$(echo "$PORTAL_CONFIG" | sed 's#localhost:8080:8080#localhost:8080:18080#g')"
 fi
 
 # First run...
 if ! grep -q "CONTAINER_ID" /etc/environment; then
+    # Ensure our Data Directory is suitable for rsync operations
+    touch ${DATA_DIRECTORY} && find ${DATA_DIRECTORY} -type d -exec touch {} \;
     # Populate /etc/environment - Skip HOME directory
     env | grep -v "^HOME=" > /etc/environment
     # Ensure users are dropped into the venv on login.  Must be after /.launch has updated PS1 
@@ -28,9 +30,6 @@ touch /.provisioning
 
 # Let the 'user' account connect via SSH
 /opt/instance-tools/bin/propagate_ssh_keys.sh
-
-# Ensure files in $DATA_DIRECTORY (usually /workspace/) are on the top overlayfs layer
-/opt/instance-tools/bin/hydrate_data_dir.sh &
 
 # Generate the Jupyter certificate if run in SSH/Args Jupyter mode
 if [ ! -f  /etc/openssl-san.cnf ] || ! grep -qi vast /etc/openssl-san.cnf; then
