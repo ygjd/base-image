@@ -17,7 +17,7 @@
 
 ## About PyTorch
 
-This PyTorch image is built and maintained by Vast.ai.  It contains development libraries and some additional software to enhance your development experience. 
+This PyTorch image is built and maintained by Vast.ai.  It contains development libraries and some additional software to enhance your development experience. Please see the associated documentation below for configuration details.
 
 ## Connecting to the Instance
 
