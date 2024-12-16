@@ -8,7 +8,7 @@
 
 ## Contents
 
-1. [About PyTorch](#about-the-base-image)
+1. [About PyTorch](#about-pytorch)
 2. [Connecting to the Instance](#connecting-to-the-instance)
 3. [Additional Software](#additional-software)
 4. [Application Management](#application-management)
@@ -235,4 +235,5 @@ supervisorctl reload
 
 ## Useful Links
 
-- [Base Image Repo](https://github.com/vast-ai/base-image)
+- [PyTorch Home](https://pytorch.org/)
+- [Image Source](https://github.com/vast-ai/base-image/tree/main/derivatives/PyTorch)
