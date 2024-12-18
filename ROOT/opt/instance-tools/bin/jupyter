@@ -8,7 +8,7 @@ type="$1"
 
 # Bail out if this is not a launch command
 if [[ $type != "notebook" ]] && [[ $type != "lab" ]]; then
-        exec jupyter "$@"
+        exec /usr/local/bin/jupyter "$@"
 fi
 
 shift
@@ -20,4 +20,4 @@ set -- "$type" \
   "--ServerApp.preferred_dir=${JUPYTER_DIR:-${DATA_DIRECTORY:-/}}" \
   "$@"
 
-jupyter "$@" 2>&1 | tee -a /var/log/portal/jupyter.log
+/usr/local/bin/jupyter "$@" 2>&1 | tee -a /var/log/portal/jupyter.log

@@ -1,5 +1,5 @@
 # Choose a base image.  Sensible options include ubuntu:xx.xx, nvidia/cuda:xx-cuddnx
-ARG BASE_IMAGE=nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
+ARG BASE_IMAGE=
 
 # We install NVM because the node version packaged by Ubuntu is generally ancient
 ARG NODE_VERSION=22.12.0
@@ -126,14 +126,30 @@ RUN \
         opencl-headers \
         ocl-icd-dev \
         ocl-icd-opencl-dev && \
+    # Ensure TensorRT where applicable
+    if [ -n "$CUDA_VERSION" ]; then \
+        CUDA_MAJOR_MINOR=$(echo $CUDA_VERSION | cut -d. -f1,2 | tr -d ".") && \
+        if [ "$CUDA_MAJOR_MINOR" -ge "126" ]; then \
+            apt-get update && apt-get install -y --no-install-recommends \
+                libnvinfer10 \
+                libnvinfer-plugin10; \
+        elif [ "$CUDA_MAJOR_MINOR" -ge "121" ]; then \
+            apt-get update && apt-get install -y --no-install-recommends \
+                libnvinfer8 \
+                libnvinfer-plugin8; \
+        fi \
+    fi
     # Install OpenCL Runtime based on available hardware
-    if command -v rocm-smi >/dev/null 2>&1; then \
-        apt-get install -y rocm-opencl-runtime; \
-    else \
-        DRIVER_VERSION=$(echo "$NVIDIA_REQUIRE_CUDA" | grep -oP 'driver>=\K\d+' | sort -nr | head -n1) && \
-        apt-get install -y libnvidia-compute-${DRIVER_VERSION}; \
-    fi && \
-    apt-get clean -y
+    RUN if command -v rocm-smi >/dev/null 2>&1; then \
+            apt-get install -y rocm-opencl-runtime; \
+        elif [ -n "$NVIDIA_REQUIRE_CUDA" ]; then \
+            DRIVER_VERSION=$(echo "$NVIDIA_REQUIRE_CUDA" | grep -oP 'driver>=\K\d+' | sort -nr | head -n1) && \
+            if [ -n "$DRIVER_VERSION" ]; then \
+                apt-get install -y libnvidia-compute-${DRIVER_VERSION}; \
+            fi \
+        fi && \
+        apt-get clean -y
+    
 
 # Add a normal user account - Some applications don't like to run as root so we should save our users some time.  Give it unfettered access to sudo
 RUN \
@@ -206,8 +222,8 @@ RUN \
 RUN \
     set -eo pipefail && \
     mkdir -p ${DATA_DIRECTORY}/venv && \
-    # Create a virtual env where we will install our packages.  It's portable unlike the system site-packages
-    python3 -m venv ${DATA_DIRECTORY}/venv/main && \
+    # Create a virtual env but use system-site-packages - This gives us portability without sacrificing any functionality
+    python3 -m venv --system-site-packages ${DATA_DIRECTORY}/venv/main && \
     ${DATA_DIRECTORY}/venv/main/bin/pip install --no-cache-dir \
         wheel \
         huggingface_hub[cli] \

@@ -19,7 +19,7 @@ if ! grep -q "CONTAINER_ID" /etc/environment; then
     # Populate /etc/environment - Skip HOME directory
     env | grep -v "^HOME=" > /etc/environment
     # Ensure users are dropped into the venv on login.  Must be after /.launch has updated PS1 
-    echo 'cd ${DATA_DIRECTORY} && source ${DATA_DIRECTORY}/venv/main/bin/activate' | tee -a /root/.bashrc /home/user/.bashrc
+    echo 'cd ${DATA_DIRECTORY} && source ${DATA_DIRECTORY}/venv/${ACTIVE_VENV:-main}/bin/activate' | tee -a /root/.bashrc /home/user/.bashrc
     # Warn CLI users if the container provisioning is not yet complete. Red >>>
     echo '[[ -f /.provisioning ]] && echo -e "\e[91m>>>\e[0m Instance provisioning is not yet complete.\n\e[91m>>>\e[0m Required software may not be ready.\n\e[91m>>>\e[0m See /var/log/portal/provisioning.log or the Instance Portal web app for progress updates\n\n"' | tee -a /root/.bashrc /home/user/.bashrc
 fi
