@@ -1,5 +1,5 @@
 # Choose a base image.  Sensible options include ubuntu:xx.xx, nvidia/cuda:xx-cuddnx
-ARG BASE_IMAGE=
+ARG BASE_IMAGE
 
 # We install NVM because the node version packaged by Ubuntu is generally ancient
 ARG NODE_VERSION=22.12.0
