@@ -569,10 +569,21 @@
             }
 
             logStream = new EventSource('/stream-logs');
+            let lastRefreshTime = Date.now();
+
             logStream.onmessage = function(event) {
                 if (!isPaused && event.data !== "<span></span>") {
                     logConsole.innerHTML += event.data;
                     logConsole.scrollTop = logConsole.scrollHeight;
+
+                    // Check for refresh trigger in log message, but only if we haven't recently refreshed
+                    if (event.data.includes("Starting Caddy...") && (Date.now() - lastRefreshTime > 5000)) {
+                        lastRefreshTime = Date.now();  // Update the timestamp
+                        showToast('Application list updating, refreshing page...', 'success');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                    }
 
                     while (logConsole.childElementCount > 600) {
                         logConsole.removeChild(logConsole.firstChild);
@@ -611,17 +622,50 @@
         }
 
         function loadDirectLink(port) {
-            fetch('/get-direct-url/' + port)
-                .then(response => {
-                    if (response.status === 200) {
-                        return response.text();
-                    } else {
-                        return false;  // Set url to false if the response status is not 200
-                    }
-                })
-                .then(url => {
+            loadDirectLinkWithRetry(port)
+        }
+
+        async function loadDirectLinkWithRetry(port, retryCount = 0, maxRetries = 8) {  // 8 retries over ~30 seconds
+            const baseDelay = 500; // Start with 500ms delay
+            const maxDelay = 5000; // Cap at 5 seconds
+            
+            // Show loading indicator for this port
+            const loadingIndicators = document.querySelectorAll(`div.loading-indicator[data-target_url*=":${port}"]`);
+            loadingIndicators.forEach(indicator => {
+                indicator.style.display = 'flex';
+            });
+
+            try {
+                const response = await fetch('/get-direct-url/' + port);
+                if (response.status === 200) {
+                    const url = await response.text();
                     updateDirectLink(port, url);
+                    // Hide loading indicator on success
+                    loadingIndicators.forEach(indicator => {
+                        indicator.style.display = 'none';
+                    });
+                    return;
+                }
+            } catch (error) {
+                console.warn(`Attempt ${retryCount + 1} failed for port ${port}:`, error);
+            }
+
+            // If we haven't succeeded and haven't exceeded max retries
+            if (retryCount < maxRetries) {
+                // Calculate delay with exponential backoff (500ms, 1s, 2s, 4s, etc.)
+                const delay = Math.min(baseDelay * Math.pow(2, retryCount), maxDelay);
+                
+                setTimeout(() => {
+                    loadDirectLinkWithRetry(port, retryCount + 1, maxRetries);
+                }, delay);
+            } else {
+                // We've timed out - clear the link and hide loading indicator
+                console.warn(`Timed out loading direct link for port ${port}`);
+                updateDirectLink(port, false);
+                loadingIndicators.forEach(indicator => {
+                    indicator.style.display = 'none';
                 });
+            }
         }
 
         function loadExistingQuickTunnel(target_url) {
@@ -771,7 +815,7 @@
                     if (event.detail.xhr.status == 200) {
                         updateQuickTunnelLink(target_url, json.tunnel_url);
                         updateButtonStates(target_url, true);
-                        showToast('Quick tunnel started successfully', 'success');
+                        showToast('Quick tunnel started successfully.  It may take a moment for DNS records to update.', 'success');
                     }
                     
                     loadingIndicators.forEach(loadingIndicator => {

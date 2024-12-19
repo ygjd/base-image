@@ -7,4 +7,7 @@
 cd /opt/portal-aio/caddy_manager
 /opt/portal-aio/venv/bin/python caddy_config_manager.py | tee -a "/var/log/portal/${PROC_NAME}.log"
 
+# Frontend log viewer will force a page reload if this string is detected
+echo "Starting Caddy..." | tee -a "/var/log/portal/${PROC_NAME}.log"
+
 /opt/portal-aio/caddy_manager/caddy run --config /etc/Caddyfile | tee -a "/var/log/portal/${PROC_NAME}.log"
