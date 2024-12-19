@@ -289,3 +289,5 @@ Check out these templates to see the default configuration in action:
 [Args Launch Mode](https://cloud.vast.ai/?ref_id=62897&creator_id=62897&name=Vast%20Base%20Image%20-%20ARGS)
 
 [Jupyter (ARM64)](https://cloud.vast.ai/?ref_id=62897&creator_id=62897&name=Vast%20Base%20Image%20-%20ARM64)
+
+[Jupyter (AMD ROCm)](https://cloud.vast.ai/?ref_id=62897&creator_id=62897&name=Vast%20Base%20Image%20-%20AMD%20ROCm)
