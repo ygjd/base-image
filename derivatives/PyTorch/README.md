@@ -161,6 +161,18 @@ The reliable Linux task scheduler, perfect for automating routine tasks in your 
 - Enabled in all launch modes
 Just add entries to your crontab to get started.
 
+### Vast.ai Instance Control
+
+The Vast.ai CLI tool comes pre-installed on your instance, allowing you to stop it from within. An instance-specific API key is already configured, giving you the ability to control this instance while you're logged in.
+
+To stop the instance from inside itself, run:
+
+```bash
+vastai stop instance $CONTAINER_ID
+```
+
+You can incorporate this command into scripts that run on the instance itself - for example, to shut down based on specific conditions. Combined with cron, you can automate when your instance stops based on your needs.
+
 ### NVM (Node Version Manager)
 
 Manages Node.js environments, essential for many modern AI tools and visualization frameworks:
