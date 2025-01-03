@@ -160,7 +160,6 @@ async def get_named_tunnels():
             raise HTTPException(status_code=500, detail=f"Unhandled error response from API")
 
 
-
 @app.post("/start-quick-tunnel/{target_url:path}")
 async def start_quick_tunnel(target_url: str):  
     url = f"{tunnel_manager}/get-quick-tunnel/{target_url}"

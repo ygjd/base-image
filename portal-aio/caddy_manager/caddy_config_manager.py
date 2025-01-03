@@ -107,6 +107,17 @@ def generate_caddyfile(config):
 def generate_auth_config(caddy_identifier, username, password, hostname, internal_port):
     hashed_password = subprocess.check_output([CADDY_BIN, 'hash-password', '-p', password]).decode().strip()
     
+    # Check if header_up should be included (case insensitive)
+    include_header_up = os.environ.get('PORTAL_HEADER_UP', '').lower() == 'true'
+    
+    # Helper function to generate reverse_proxy block with conditional header_up
+    def get_reverse_proxy_block(hostname, internal_port):
+        if include_header_up:
+            return f'''
+            header_up Host {hostname}:{internal_port}
+'''
+        return ""
+    
     auth_config = f'''    @token_auth {{
         query token={password}
     }}
@@ -127,13 +138,13 @@ def generate_auth_config(caddy_identifier, username, password, hostname, interna
 
     route @has_valid_auth_cookie {{
         reverse_proxy {hostname}:{internal_port} {{
-            header_up Host {hostname}:{internal_port}
+            {get_reverse_proxy_block(hostname, internal_port)}        
         }}
     }}
 
     route @has_valid_bearer_token {{
         reverse_proxy {hostname}:{internal_port} {{
-            header_up Host {hostname}:{internal_port}
+            {get_reverse_proxy_block(hostname, internal_port)}
         }}
     }}
 
@@ -143,7 +154,7 @@ def generate_auth_config(caddy_identifier, username, password, hostname, interna
         }}
         header Set-Cookie "{caddy_identifier}_auth_token={password}; Path=/; Max-Age=604800; HttpOnly; SameSite=lax"
         reverse_proxy {hostname}:{internal_port} {{
-            header_up Host {hostname}:{internal_port}
+            {get_reverse_proxy_block(hostname, internal_port)}
         }}
     }}
 '''
