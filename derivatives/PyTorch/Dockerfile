@@ -10,10 +10,11 @@ LABEL maintainer="Vast.ai Inc <contact@vast.ai>"
 # Copy Supervisor configuration and startup scripts
 COPY ./ROOT /
 
-# Required or we will not build
+# Required or we will not build - Store for use in derivative images
 ARG PYTORCH_VERSION
+ENV PYTORCH_VERSION=${PYTORCH_VERSION}
 ARG PYTORCH_INDEX_URL
-ARG VAST_BASE
+ENV PYTORCH_INDEX_URL=${PYTORCH_INDEX_URL}
 
 RUN \
     [[ -n "${PYTORCH_VERSION}" ]] || { echo "Must specify PYTORCH_VERSION" && exit 1; } && \
