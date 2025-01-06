@@ -1,6 +1,7 @@
 #!/bin/bash
 
 source ${DATA_DIRECTORY}venv/main/bin/activate
+COMFYUI_DIR=${DATA_DIRECTORY}ComfyUI
 
 # Packages are installed after nodes so we can fix them...
 
@@ -45,8 +46,6 @@ CONTROLNET_MODELS=(
 ### DO NOT EDIT BELOW HERE UNLESS YOU KNOW WHAT YOU ARE DOING ###
 
 function provisioning_start() {
-    COMFYUI_DIR=${DATA_DIRECTORY}ComfyUI
-    
     provisioning_print_header
     provisioning_get_apt_packages
     provisioning_get_nodes
@@ -87,7 +86,7 @@ function provisioning_get_pip_packages() {
 function provisioning_get_nodes() {
     for repo in "${NODES[@]}"; do
         dir="${repo##*/}"
-        path="/opt/ComfyUI/custom_nodes/${dir}"
+        path="${COMFYUI_DIR}custom_nodes/${dir}"
         requirements="${path}/requirements.txt"
         if [[ -d $path ]]; then
             if [[ ${AUTO_UPDATE,,} != "false" ]]; then
