@@ -3,9 +3,6 @@
 # Syncthing daemonises and the new process is out-of-group.  Ensure it is fully killed on exit
 trap 'pgrep syncthing | grep -v "^$$\$" | xargs -r kill -9' EXIT
 
-[[ ${AUTOSCALER,,} = 'true' ]] && echo "Refusing to start ${PROC_NAME} (AUTOSCALER=true)" && exit
-[[ $OPEN_BUTTON_PORT != "1111" ]] && echo "Refusing to start ${PROC_NAME} (OPEN_BUTTON_PORT!=1111)" | tee -a "/var/log/portal/${PROC_NAME}.log" && exit
-
 # User can configure startup by removing the reference in /etc.portal.yaml - So wait for that file and check it
 while [ ! -f "$(realpath -q /etc/portal.yaml 2>/dev/null)" ]; do
     echo "Waiting for /etc/portal.yaml before starting ${PROC_NAME}..." | tee -a "/var/log/portal/${PROC_NAME}.log"

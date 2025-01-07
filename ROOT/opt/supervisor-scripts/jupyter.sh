@@ -7,9 +7,6 @@
 # 3) We get unauthenticated access without TLS via SSH forwarding 
 # 4) it gives us a shell in Args runtype
 
-[[ ${AUTOSCALER,,} = 'true' ]] && echo "Refusing to start ${PROC_NAME} (AUTOSCALER=true)" | tee -a "/var/log/portal/${PROC_NAME}.log" && exit
-[[ $OPEN_BUTTON_PORT != "1111" ]] && echo "Refusing to start ${PROC_NAME} (OPEN_BUTTON_PORT!=1111)" | tee -a "/var/log/portal/${PROC_NAME}.log" && exit
-[[ -z $VAST_TCP_PORT_8080 ]] && echo "Refusing to start ${PROC_NAME} (VAST_TCP_PORT_8080 not set)" | tee -a "/var/log/portal/${PROC_NAME}.log" && exit
 [[ -f /.launch ]] && grep -qi jupyter /.launch &&  echo "Refusing to start ${PROC_NAME} (/.launch managing)" | tee -a "/var/log/portal/${PROC_NAME}.log" && exit
 
 # User can configure startup by removing the reference in /etc.portal.yaml - So wait for that file and check it
