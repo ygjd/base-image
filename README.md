@@ -232,7 +232,7 @@ Want to use a different base image? Just pass the `BASE_IMAGE` build argument du
 Need to add your own tools and configurations? Use our image as your starting point:
 
 ```dockerfile
-FROM vastai/vast-base:<TAG>
+FROM vastai/base-image:<TAG>
 ```
 
 #### Tips for customizing:
