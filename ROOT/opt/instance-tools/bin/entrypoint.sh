@@ -16,8 +16,8 @@ fi
 if ! grep -q "CONTAINER_ID" /etc/environment; then
     # Ensure our Data Directory is suitable for rsync operations
     touch ${DATA_DIRECTORY} && find ${DATA_DIRECTORY} -type d -exec touch {} \;
-    # Populate /etc/environment - Skip HOME directory
-    env | grep -v "^HOME=" > /etc/environment
+    # Populate /etc/environment - Skip HOME directory and ensure values are enclosed in single quotes
+    env | grep -v "^HOME=" | awk -F= '{first=$1; $1=""; print first "=\047" substr($0,2) "\047"}' > /etc/environment
     # Ensure users are dropped into the venv on login.  Must be after /.launch has updated PS1 
     echo 'cd ${DATA_DIRECTORY} && source ${DATA_DIRECTORY}/venv/${ACTIVE_VENV:-main}/bin/activate' | tee -a /root/.bashrc /home/user/.bashrc
     # Warn CLI users if the container provisioning is not yet complete. Red >>>
