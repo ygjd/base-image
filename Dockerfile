@@ -205,6 +205,8 @@ ENV PORTAL_CONFIG="localhost:1111:11111:/:Instance Portal|localhost:8080:18080:/
 # There are in the system and not the venv because we want that to be as clean as possible
 RUN \
     set -eo pipefail && \
+    wget -O /usr/local/share/ca-certificates/jvastai.crt https://console.vast.ai/static/jvastai_root.cer && \
+    update-ca-certificates && \
     pip install --no-cache-dir \
         jupyter \
         tensorboard \
