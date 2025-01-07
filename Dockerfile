@@ -195,12 +195,6 @@ RUN \
     ln -s /opt/portal-aio/caddy_manager/caddy /opt/instance-tools/bin/caddy && \
     ln -s /opt/portal-aio/tunnel_manager/cloudflared /opt/instance-tools/bin/cloudflared
 
-
-# Initial config will write /etc/portal.yaml
-# Start with only Instance Portal, Jupyter, Syncthing & Tensorboard.  All useful in a base image
-# Any services we define in /opt/supervisor-scripts/bin and /etc/supervisor/conf.d can use the config at /etc/portal.yaml to defer/disable startup
-ENV PORTAL_CONFIG="localhost:1111:11111:/:Instance Portal|localhost:8080:18080:/:Jupyter|localhost:8080:18080:/:Jupyter Terminal|localhost:8384:18384:/:Syncthing|localhost:6006:16006:/:Tensorboard"
-
 # Populate the system Python environment with useful tools.  Add jupyter to speed up instance creation and install tensorboard as it is quite useful if training
 # There are in the system and not the venv because we want that to be as clean as possible
 RUN \
