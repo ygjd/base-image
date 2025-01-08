@@ -20,7 +20,7 @@ RUN \
     torch_version_pre="$(python -c 'import torch; print (torch.__version__)')" && \
     # Install xformers while pinning to the inherited torch version.  Fail build on dependency resolution if matching version is unavailable
     pip install xformers torch==$PYTORCH_VERSION --index-url "${PYTORCH_INDEX_URL}" && \
-    pip install onnxruntime-gpu && \
+    pip install onnxruntime-gpu insightface && \
     # Get Forge and install dependencies (torch should not be pinned to a specific version in the requirements.txt - If it is then our build will probably fail)
     cd "${DATA_DIRECTORY}" && \
     git clone https://github.com/lllyasviel/stable-diffusion-webui-forge && \
