@@ -1,7 +1,17 @@
 #!/bin/bash
 
-# This service starts whether it has been included in PORTAL_CONFIG or not.
-# If it is not, there will be no listening in the external interface - This is ok, user probably wants SSH forwarding or autoscaler
+# User can configure startup by removing the reference in /etc.portal.yaml - So wait for that file and check it
+while [ ! -f "$(realpath -q /etc/portal.yaml 2>/dev/null)" ]; do
+    echo "Waiting for /etc/portal.yaml before starting ${PROC_NAME}..." | tee -a "/var/log/portal/${PROC_NAME}.log"
+    sleep 1
+done
+
+# rudimentary check for comfyui in the portal config
+search_pattern=$(echo "$PROC_NAME" | sed 's/[ _-]/[ _-]/g')
+if ! grep -qiE "^[^#].*${search_pattern}" /etc/portal.yaml; then
+    echo "Skipping startup for ${PROC_NAME} (not in /etc/portal.yaml)" | tee -a "/var/log/portal/${PROC_NAME}.log"
+    exit 0
+fi
 
 # Activate the venv
 . ${DATA_DIRECTORY}venv/main/bin/activate
@@ -17,4 +27,4 @@ done
 cd ${DATA_DIRECTORY}ComfyUI
 LD_PRELOAD=libtcmalloc_minimal.so.4 \
         python main.py \
-        ${COMFYUI_ARGS} --disable-auto-launch --port 18188
+        ${COMFYUI_ARGS:- --disable-auto-launch --port 18188} | tee -a "/var/log/portal/${PROC_NAME}.log"

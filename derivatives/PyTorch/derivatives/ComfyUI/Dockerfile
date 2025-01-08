@@ -51,3 +51,5 @@ RUN \
     # Test 1: Verify PyTorch version is unaltered
     torch_version_post="$(python -c 'import torch; print (torch.__version__)')" && \
     [[ $pre_torch_version = $post_torch_version ]] || { echo "PyTorch version mismatch (wanted ${torch_version_pre} but got ${torch_version_post})" && exit 1; }
+
+    ENV COMFYUI_ARGS="--disable-auto-launch --port 18188"
