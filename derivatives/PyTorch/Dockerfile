@@ -19,14 +19,13 @@ ENV PYTORCH_INDEX_URL=${PYTORCH_INDEX_URL}
 RUN \
     [[ -n "${PYTORCH_VERSION}" ]] || { echo "Must specify PYTORCH_VERSION" && exit 1; } && \
     [[ -n "${PYTORCH_INDEX_URL}" ]] || { echo "Must specify PYTORCH_INDEX_URL" && exit 1; } && \
-    # Install Torch to system site-packages - Venvs can inherit this without incurring a storage penalty
+    # Activate the venv
+    . ${DATA_DIRECTORY}venv/main/bin/activate && \
     pip install --no-cache-dir \
         torch==${PYTORCH_VERSION} \
         torchvision \
         torchaudio \
         --index-url ${PYTORCH_INDEX_URL} && \
-    # Test from the main venv
-    . ${DATA_DIRECTORY}venv/main/bin/activate && \
     # Test 1: Verify PyTorch version (using startswith to handle CUDA/ROCm suffixes)
     python3 -c "import torch; assert torch.__version__.startswith('${PYTORCH_VERSION}'), f'Version mismatch: expected version starting with ${PYTORCH_VERSION}, got {torch.__version__}'" && \
     # Test 2: Check for correct backend based on base image
