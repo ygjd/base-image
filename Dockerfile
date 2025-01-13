@@ -36,8 +36,7 @@ SHELL ["/bin/bash", "-c"]
 
 # Vast.ai environment variables used for Jupyter & Data sync
 ENV DATA_DIRECTORY=/workspace/
-# Touch all files in ${DATA_DIRECTORY} 
-ENV DATA_DIRECTORY_HYDRATE=false
+
 # Ubuntu 24.04 requires this for compatibility with our /.launch script
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 
@@ -52,16 +51,20 @@ RUN yes | unminimize
 # Create a useful base environment with commonly used tools
 ARG TARGETARCH
 RUN \
-    set -eo pipefail && \
+    set -euo pipefail && \
     ([ $TARGETARCH = "arm64" ] && echo "Skipping i386 architecture for ARM builds" || dpkg --add-architecture i386) && \
     apt-get update && \
     apt-get upgrade -y && \
+    apt-get install --no-install-recommends -y \
+        software-properties-common && \
+    # For alternative Python versions
+    add-apt-repository ppa:deadsnakes/ppa && \
+    apt-get update && \
     apt-get install --no-install-recommends -y \
         # Base system utilities
         acl \
         ca-certificates \
         gpg-agent \
-        software-properties-common \
         openssh-server \
         locales \
         lsb-release \
@@ -96,6 +99,7 @@ RUN \
         cmake \
         ninja-build \
         gdb \
+        # System Python
         python3-full \
         python3-dev \
         python3-pip \
@@ -153,7 +157,7 @@ RUN \
 
 # Add a normal user account - Some applications don't like to run as root so we should save our users some time.  Give it unfettered access to sudo
 RUN \
-    set -eo pipefail && \
+    set -euo pipefail && \
     groupadd -g 1001 user && \
     useradd -ms /bin/bash user -u 1001 -g 1001 && \
     echo "PATH=${PATH}" >> /home/user/.bashrc && \
@@ -170,7 +174,7 @@ RUN \
 
 # Install NVM for node version management
 RUN \
-    set -eo pipefail && \
+    set -euo pipefail && \
     git clone https://github.com/nvm-sh/nvm.git /opt/nvm && \
     (cd /opt/nvm/ && git checkout `git describe --abbrev=0 --tags --match "v[0-9]*" $(git rev-list --tags --max-count=1)`) && \
     source /opt/nvm/nvm.sh && \
@@ -184,8 +188,10 @@ COPY ./portal-aio /opt/portal-aio
 COPY --from=caddy_builder /go/caddy /opt/portal-aio/caddy_manager/caddy
 ARG TARGETARCH
 RUN \
-    set -eo pipefail && \
-    python3 -m venv /opt/portal-aio/venv && \
+    set -euo pipefail && \
+    apt-get install --no-install-recommends -y \
+        python3.10-venv && \
+    python3.10 -m venv /opt/portal-aio/venv && \
     mkdir -m 770 -p /var/log/portal && \
     mkdir -p opt/instance-tools/bin/ && \
     /opt/portal-aio/venv/bin/pip install -r /opt/portal-aio/requirements.txt 2>&1 | tee -a /var/log/portal/portal.log && \
@@ -196,9 +202,9 @@ RUN \
     ln -s /opt/portal-aio/tunnel_manager/cloudflared /opt/instance-tools/bin/cloudflared
 
 # Populate the system Python environment with useful tools.  Add jupyter to speed up instance creation and install tensorboard as it is quite useful if training
-# There are in the system and not the venv because we want that to be as clean as possible
+# These are in the system and not the venv because we want that to be as clean as possible
 RUN \
-    set -eo pipefail && \
+    set -euo pipefail && \
     wget -O /usr/local/share/ca-certificates/jvastai.crt https://console.vast.ai/static/jvastai_root.cer && \
     update-ca-certificates && \
     pip install --no-cache-dir \
@@ -209,17 +215,23 @@ RUN \
 # Install Syncthing
 ARG TARGETARCH
 RUN \
-    set -eo pipefail && \
+    set -euo pipefail && \
     SYNCTHING_VERSION="$(curl -fsSL "https://api.github.com/repos/syncthing/syncthing/releases/latest" | jq -r '.tag_name' | sed 's/[^0-9\.\-]*//g')" && \
     SYNCTHING_URL="https://github.com/syncthing/syncthing/releases/download/v${SYNCTHING_VERSION}/syncthing-linux-${TARGETARCH}-v${SYNCTHING_VERSION}.tar.gz" && \
     mkdir /opt/syncthing/ && \
     wget -O /opt/syncthing.tar.gz $SYNCTHING_URL && (cd /opt && tar -zxf syncthing.tar.gz -C /opt/syncthing/ --strip-components=1) && rm -f /opt/syncthing.tar.gz
 
+ARG PYTHON_VERSION=3.10
+ENV PYTHON_VERSION=${PYTHON_VERSION}
 RUN \
-    set -eo pipefail && \
+    set -euo pipefail && \
+    # Supplementary Python
+    apt-get install --no-install-recommends -y \
+        python${PYTHON_VERSION}-full \
+        python${PYTHON_VERSION}-venv && \
     mkdir -p ${DATA_DIRECTORY}/venv && \
-    # Create a virtual env but use system-site-packages - This gives us portability without sacrificing any functionality
-    python3 -m venv --system-site-packages ${DATA_DIRECTORY}/venv/main && \
+    # Create a virtual env - This gives us portability without sacrificing any functionality
+    python${PYTHON_VERSION} -m venv ${DATA_DIRECTORY}/venv/main && \
     ${DATA_DIRECTORY}/venv/main/bin/pip install --no-cache-dir \
         wheel \
         huggingface_hub[cli] \

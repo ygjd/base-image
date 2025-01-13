@@ -223,9 +223,11 @@ Getting started with our base image is straightforward - you don't need a GPU fo
 # Clone and build
 git clone https://github.com/vast-ai/base-image
 cd base-image
-docker buildx build --build-arg BASE_IMAGE=nvidia/cuda:12.1.1-cudnn8-devel-ubuntu22.04 .
+docker buildx build --build-arg BASE_IMAGE=nvidia/cuda:12.1.1-cudnn8-devel-ubuntu22.04 --build-arg PYTHON_VERSION=3.10 .
 ```
 Want to use a different base image? Just pass the `BASE_IMAGE` build argument during build.
+
+Optionally, pass build argument `PYTHON_VERSION` to set the Python version for the main virtual environment.
 
 ### Creating Custom Images
 
