@@ -56,7 +56,8 @@ RUN \
     apt-get update && \
     apt-get upgrade -y && \
     apt-get install --no-install-recommends -y \
-        software-properties-common && \
+        software-properties-common \
+        gpg-agent && \
     # For alternative Python versions
     add-apt-repository ppa:deadsnakes/ppa && \
     apt-get update && \
@@ -64,7 +65,6 @@ RUN \
         # Base system utilities
         acl \
         ca-certificates \
-        gpg-agent \
         openssh-server \
         locales \
         lsb-release \
@@ -166,11 +166,11 @@ RUN \
     mkdir -m 700 -p /run/user/1001 && \
     chown 1001:1001 /run/user/1001 && \
     mkdir /run/dbus && \
-    mkdir ${DATA_DIRECTORY} && \
-    chown 1001:1001 ${DATA_DIRECTORY} && \
-    chmod g+s ${DATA_DIRECTORY} && \
-    chmod 775 ${DATA_DIRECTORY} && \
-    setfacl -d -m g:user:rw- ${DATA_DIRECTORY}
+    mkdir /workspace/ && \
+    chown 1001:1001 /workspace/ && \
+    chmod g+s /workspace/ && \
+    chmod 775 /workspace/ && \
+    setfacl -d -m g:user:rw- /workspace/
 
 # Install NVM for node version management
 RUN \
@@ -229,19 +229,19 @@ RUN \
     apt-get install --no-install-recommends -y \
         python${PYTHON_VERSION}-full \
         python${PYTHON_VERSION}-venv && \
-    mkdir -p ${DATA_DIRECTORY}/venv && \
+    mkdir -p /workspace/venv && \
     # Create a virtual env - This gives us portability without sacrificing any functionality
-    python${PYTHON_VERSION} -m venv ${DATA_DIRECTORY}/venv/main && \
-    ${DATA_DIRECTORY}/venv/main/bin/pip install --no-cache-dir \
+    python${PYTHON_VERSION} -m venv /workspace/venv/main && \
+    /workspace/venv/main/bin/pip install --no-cache-dir \
         wheel \
         huggingface_hub[cli] \
         ipykernel \
         ipywidgets && \
-    ${DATA_DIRECTORY}/venv/main/bin/python -m ipykernel install \
+    /workspace/venv/main/bin/python -m ipykernel install \
         --name="main" \
         --display-name="Python3 (main venv)" && \
     # Re-add as default.  We don't want users accidentally installing packages in the system python
-    ${DATA_DIRECTORY}/venv/main/bin/python -m ipykernel install \
+    /workspace/venv/main/bin/python -m ipykernel install \
         --name="python3" \
         --display-name="Python3 (ipykernel)"
 
@@ -251,4 +251,4 @@ ENV PATH=/opt/instance-tools/bin:${PATH}
 
 CMD ["entrypoint.sh"]
 
-WORKDIR ${DATA_DIRECTORY}
+WORKDIR /workspace/
