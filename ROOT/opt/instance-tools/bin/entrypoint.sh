@@ -13,7 +13,8 @@ else
 fi
 
 # First run...
-if ! grep -q "CONTAINER_ID" /etc/environment; then
+if [[ ! -f /.first_boot_complete ]]; then
+    echo "Applying first boot optimizations..."
     # Ensure our Data Directory is suitable for rsync operations
     touch ${DATA_DIRECTORY} && find ${DATA_DIRECTORY} -type d -exec touch {} \;
     # Populate /etc/environment - Skip HOME directory and ensure values are enclosed in single quotes
@@ -22,6 +23,8 @@ if ! grep -q "CONTAINER_ID" /etc/environment; then
     echo 'cd ${DATA_DIRECTORY} && source ${DATA_DIRECTORY}/venv/${ACTIVE_VENV:-main}/bin/activate' | tee -a /root/.bashrc /home/user/.bashrc
     # Warn CLI users if the container provisioning is not yet complete. Red >>>
     echo '[[ -f /.provisioning ]] && echo -e "\e[91m>>>\e[0m Instance provisioning is not yet complete.\n\e[91m>>>\e[0m Required software may not be ready.\n\e[91m>>>\e[0m See /var/log/portal/provisioning.log or the Instance Portal web app for progress updates\n\n"' | tee -a /root/.bashrc /home/user/.bashrc
+    touch /.first_boot_complete
+    chattr +i /.first_boot_complete
 fi
 
 # We may be busy for a while.
