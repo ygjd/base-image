@@ -15,16 +15,23 @@ fi
 # First run...
 if [[ ! -f /.first_boot_complete ]]; then
     echo "Applying first boot optimizations..."
-    # Ensure our Data Directory is suitable for rsync operations
-    touch ${DATA_DIRECTORY} && find ${DATA_DIRECTORY} -type d -exec touch {} \;
+    # Ensure our workspace is suitable for rsync operations
+    if [[ ${HYDRATE_WORKSPACE,,} != "false" ]]; then
+        # Touch everything - both files and directories. Consumes space but ensures entire environment is portable
+        echo "Hydrating entire /workspace/ directory"
+        #touch /workspace/ && find /workspace/ -exec touch {} \
+    else
+        # Touch workspace root and all directories only.
+        echo "Skipping hydrate"
+        #touch /workspace/ && find /workspace/ -type d -exec touch {} \
+    fi
     # Populate /etc/environment - Skip HOME directory and ensure values are enclosed in single quotes
     env | grep -v "^HOME=" | awk -F= '{first=$1; $1=""; print first "=\047" substr($0,2) "\047"}' > /etc/environment
     # Ensure users are dropped into the venv on login.  Must be after /.launch has updated PS1 
-    echo 'cd ${DATA_DIRECTORY} && source ${DATA_DIRECTORY}/venv/${ACTIVE_VENV:-main}/bin/activate' | tee -a /root/.bashrc /home/user/.bashrc
+    echo 'cd /workspace/ && source /workspace/venv/${ACTIVE_VENV:-main}/bin/activate' | tee -a /root/.bashrc /home/user/.bashrc
     # Warn CLI users if the container provisioning is not yet complete. Red >>>
     echo '[[ -f /.provisioning ]] && echo -e "\e[91m>>>\e[0m Instance provisioning is not yet complete.\n\e[91m>>>\e[0m Required software may not be ready.\n\e[91m>>>\e[0m See /var/log/portal/provisioning.log or the Instance Portal web app for progress updates\n\n"' | tee -a /root/.bashrc /home/user/.bashrc
     touch /.first_boot_complete
-    chattr +i /.first_boot_complete
 fi
 
 # We may be busy for a while.
@@ -89,9 +96,9 @@ if [[ -n $PROVISIONING_SCRIPT ]]; then
     echo "*"
     echo "*****"
     # Only download it if we don't already have it - Allows inplace modification & restart
-    [[ ! -f /tmp/provisioning.sh ]] && curl -Lo /tmp/provisioning.sh $PROVISIONING_SCRIPT && \
-    chmod +x /tmp/provisioning.sh && \
-    /tmp/provisioning.sh 2>&1 | tee -a /var/log/portal/provisioning.log
+    [[ ! -f /provisioning.sh ]] && curl -Lo /tmp/provisioning.sh $PROVISIONING_SCRIPT && \
+    chmod +x /provisioning.sh && \
+    /provisioning.sh 2>&1 | tee -a /var/log/portal/provisioning.log
     echo "Provisioning complete!" | tee -a /var/log/portal/provisioning.log
 fi
 
