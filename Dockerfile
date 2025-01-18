@@ -131,8 +131,8 @@ RUN \
         ocl-icd-dev \
         ocl-icd-opencl-dev && \
     # Ensure TensorRT where applicable
-    if [ -n "$CUDA_VERSION" ]; then \
-        CUDA_MAJOR_MINOR=$(echo $CUDA_VERSION | cut -d. -f1,2 | tr -d ".") && \
+    if [ -n "${CUDA_VERSION:-}" ]; then \
+        CUDA_MAJOR_MINOR=$(echo ${CUDA_VERSION} | cut -d. -f1,2 | tr -d ".") && \
         if [ "$CUDA_MAJOR_MINOR" -ge "126" ]; then \
             apt-get update && apt-get install -y --no-install-recommends \
                 libnvinfer10 \
@@ -144,11 +144,13 @@ RUN \
         fi \
     fi
     # Install OpenCL Runtime based on available hardware
-    RUN if command -v rocm-smi >/dev/null 2>&1; then \
+    RUN \
+    set -euo pipefail && \
+        if command -v rocm-smi >/dev/null 2>&1; then \
             apt-get install -y rocm-opencl-runtime; \
-        elif [ -n "$NVIDIA_REQUIRE_CUDA" ]; then \
-            DRIVER_VERSION=$(echo "$NVIDIA_REQUIRE_CUDA" | grep -oP 'driver>=\K\d+' | sort -nr | head -n1) && \
-            if [ -n "$DRIVER_VERSION" ]; then \
+        elif [ -n "${NVIDIA_REQUIRE_CUDA:-}" ]; then \
+            DRIVER_VERSION=$(echo "${NVIDIA_REQUIRE_CUDA}" | grep -oP 'driver>=\K\d+' | sort -nr | head -n1) && \
+            if [ -n "${DRIVER_VERSION:-}" ]; then \
                 apt-get install -y libnvidia-compute-${DRIVER_VERSION}; \
             fi \
         fi && \
@@ -249,6 +251,8 @@ RUN \
 COPY ./ROOT/ /
 ENV PATH=/opt/instance-tools/bin:${PATH}
 
+#TEST!!!!
+RUN /workspace/venv/main/bin/pip install torch
 CMD ["entrypoint.sh"]
 
 WORKDIR /workspace/
