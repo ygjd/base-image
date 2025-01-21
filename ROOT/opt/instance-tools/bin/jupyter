@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Very simple wrapper to ensure the Vast Jupyter launcher uses the Python binary from ${DATA_DIRECTORY}venv/main 
+# Very simple wrapper to ensure the Vast Jupyter launcher uses the Python binary from /venv/main 
 
-. ${DATA_DIRECTORY}venv/main/bin/activate
+[[ -f ${WORKSPACE}/venv/main/bin/activate ]] && . "${WORKSPACE}/venv/main/bin/activate" || . /venv/main/bin/activate
 
 type="$1"
 
@@ -17,7 +17,7 @@ shift
 set -- "$type" \
   "--ContentsManager.allow_hidden=True" \
   "--ServerApp.root_dir=/" \
-  "--ServerApp.preferred_dir=${JUPYTER_DIR:-${DATA_DIRECTORY:-/}}" \
+  "--ServerApp.preferred_dir=${JUPYTER_DIR:-${WORKSPACE:-/}}" \
   "$@"
 
 /usr/local/bin/jupyter "$@" 2>&1 | tee -a /var/log/portal/jupyter.log
