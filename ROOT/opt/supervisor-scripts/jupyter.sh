@@ -15,8 +15,9 @@ while [ ! -f "$(realpath -q /etc/portal.yaml 2>/dev/null)" ]; do
     sleep 1
 done
 
-# rudimentary check for jupyter in the portal config
-search_pattern=$(echo "$PROC_NAME" | sed 's/[ _-]/[ _-]/g')
+# Check for $search_term in the portal config
+search_term="jupyter"
+search_pattern=$(echo "$search_term" | sed 's/[ _-]/[ _-]?/gi')
 if ! grep -qiE "^[^#].*${search_pattern}" /etc/portal.yaml; then
     echo "Skipping startup for ${PROC_NAME} (not in /etc/portal.yaml)" | tee -a "/var/log/portal/${PROC_NAME}.log"
     exit 0
@@ -26,7 +27,7 @@ type="${JUPYTER_TYPE:-notebook}"
 
 # Ensure the default Python used by Jupyter is our venv
 # Token not specified because auth is handled through Caddy
-. ${DATA_DIRECTORY}venv/main/bin/activate
+[[ -f "${WORKSPACE}/venv/main/bin/activate" ]] && . "${WORKSPACE}/venv/main/bin/activate" || . /venv/main/bin/activate
 jupyter "${type,,}" \
         --allow-root \
         --ip=127.0.0.1 \

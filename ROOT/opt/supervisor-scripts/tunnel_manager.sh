@@ -6,9 +6,9 @@ while [ ! -f "$(realpath -q /etc/portal.yaml 2>/dev/null)" ]; do
     sleep 1
 done
 
-# rudimentary check for instance portal in the portal config
-portal_proc="instance_portal"
-search_pattern=$(echo "$portal_proc" | sed 's/[ _-]/[ _-]/g')
+# Check for $search_term in the portal config
+search_term="instance portal"
+search_pattern=$(echo "$search_term" | sed 's/[ _-]/[ _-]?/gi')
 if ! grep -qiE "^[^#].*${search_pattern}" /etc/portal.yaml; then
     echo "Skipping startup for ${PROC_NAME} (not in /etc/portal.yaml)" | tee -a "/var/log/portal/${PROC_NAME}.log"
     exit 0

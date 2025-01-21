@@ -6,11 +6,12 @@ while [ ! -f "$(realpath -q /etc/portal.yaml 2>/dev/null)" ]; do
     sleep 1
 done
 
-# rudimentary check for tensorboard in the portal config
-search_pattern=$(echo "$PROC_NAME" | sed 's/[ _-]/[ _-]/g')
+# Check for $search_term in the portal config
+search_term="tensor board"
+search_pattern=$(echo "$search_term" | sed 's/[ _-]/[ _-]?/gi')
 if ! grep -qiE "^[^#].*${search_pattern}" /etc/portal.yaml; then
     echo "Skipping startup for ${PROC_NAME} (not in /etc/portal.yaml)" | tee -a "/var/log/portal/${PROC_NAME}.log"
     exit 0
 fi
 
-tensorboard --port 16006 --logdir ${TENSORBOARD_LOG_DIR:-${DATA_DIRECTORY:-/workspace/}} | tee -a "/var/log/portal/${PROC_NAME}.log"
+tensorboard --port 16006 --logdir "${TENSORBOARD_LOG_DIR:-${WORKSPACE:-/workspace}}" | tee -a "/var/log/portal/${PROC_NAME}.log"
