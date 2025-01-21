@@ -26,7 +26,7 @@ Our base image comes packed with features designed to make your development expe
 
 **Development Tools**
 - Built-in [Vast CLI](https://pypi.org/project/vastai/) for seamless instance management
-- Python virtual environment pre-configured in `$DATA_DIRECTORY` (default: `/workspace`)
+- Python virtual environment pre-configured in `/workspace`
 - Non-root `user` account for applications with root restrictions
 - Extensive application suite for remote development
 
@@ -133,12 +133,12 @@ The container starts with `/opt/instance-tools/bin/entrypoint.sh`, which handles
   - Sets up SSH keys for non-root access
 
 2. **Workspace Preparation**
-  - Promotes directories in `$DATA_DIRECTORY` to the top overlayfs layer for better instance to instance transfer compatibility
+  - Copies internal directory `/opt/workspace-internal` to `${WORKSPACE}` on first boot allowing for full rsync backup
   - Generates TLS certificates if needed
   - Starts Supervisor in the background
 
 3. **Custom Configuration**
-  - Downloads and executes any script defined in `PROVISIONING_SCRIPT`
+  - Downloads and executes any script defined in `PROVISIONING_SCRIPT`. Find the downloaded script at `/provisioning.sh`
   - Removes the `/.provisioning` lock
   - Maintains the container process until Supervisor stops
 
@@ -178,6 +178,14 @@ The industry standard for interactive Python development. Perfect for prototypin
 - In Jupyter launch mode, managed by `/.launch` script instead
 - Customize configuration in `ROOT/opt/supervisor-scripts/jupyter.sh`
 
+### Caddy
+
+The Caddy web server is used to enable both HTTPS and authentication for exposed web applications.
+
+Each application launched by this docker image will bind to `localhost` rather than the external interface.  Caddy will instead bind to the external interface and it will act as a reverse proxy to serve the application.
+
+This setup makes it straightforward to access the application securely over the internet while still being able to connect without TLS or authentication via SSH Port Forwarding.
+
 #### Syncthing
 
 A powerful file synchronization tool that keeps your development environment in sync across devices. Ideal for maintaining consistent workspaces across multiple instances or syncing datasets. Features:
@@ -191,7 +199,7 @@ See the [Syncthing documentation](https://docs.syncthing.net/) for setup instruc
 #### Tensorboard
 
 Visualization toolkit for machine learning experiments, helping you track metrics, view model graphs, and analyze training results. Our configuration:
-- By default, monitors `${DATA_DIRECTORY}` (`/workspace`)
+- By default, monitors `/workspace`
 - Customize log directory via `TENSORBOARD_LOG_DIR` environment variable
 - Automatically detects and displays new experiments
 
@@ -203,6 +211,14 @@ The reliable Linux task scheduler, perfect for automating routine tasks in your 
 - Run periodic maintenance tasks
 - Enabled in all launch modes
 Just add entries to your crontab to get started.
+
+### OpenCL
+
+A standardized framework for parallel programming across heterogeneous computing platforms. Ideal for high-performance computing tasks that can leverage GPUs, CPUs, and other processors. Features:
+- Cross-platform compatibility
+- Hardware-agnostic code execution
+- Support for data and task parallelism
+- Memory management optimization
 
 #### NVM (Node Version Manager)
 
@@ -239,7 +255,7 @@ FROM vastai/base-image:<TAG>
 
 #### Tips for customizing:
 
-- Install your Python packages into ${DATA_DIRECTORY}venv/main
+- Install your Python packages into `/venv/main/`
 - Add Supervisor config files for any new services
 - Create wrapper scripts for your services (check out our Jupyter and Syncthing scripts as examples)
 
@@ -257,13 +273,13 @@ Here's a typical provisioning script:
 #!/bin/bash
 
 # Activate the main virtual environment
-. ${DATA_DIRECTORY}venv/main/bin/activate
+. /venv/main/bin/activate
 
 # Install your packages
 pip install your-packages
 
 # Download some useful files
-wget -P ${DATA_DIRECTORY} https://example.org/useful-files.tar.gz
+wget -P /workspace/ https://example.org/useful-files.tar.gz
 
 # Set up any additional services
 echo "your-supervisor-config" > /etc/supervisor/conf.d/your-service.conf
