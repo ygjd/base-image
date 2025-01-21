@@ -62,6 +62,16 @@ def wait_for_valid_certs():
         time.sleep(5)
     return False
 
+def is_port_auth_excluded(external_port):
+    # Get the environment variable, default to empty string if not set
+    auth_exclude = os.getenv('AUTH_EXCLUDE', '')
+    
+    # Convert the comma-separated string to a list of integers
+    excluded_ports = [int(port.strip()) for port in auth_exclude.split(',') if port.strip()]
+    
+    # Check if the external port is not in the excluded list
+    return external_port in excluded_ports
+
 def generate_caddyfile(config):
     if os.environ.get('ENABLE_HTTPS', 'true').lower() != 'false' and wait_for_valid_certs():
         enable_https = True
@@ -77,6 +87,18 @@ def generate_caddyfile(config):
     if enable_https:
         caddyfile += '    servers { listener_wrappers { http_redirect\ntls } }\n'
     caddyfile += "}\n\n"
+
+    caddyfile += '    (noauth) {\n'
+    caddyfile += '        @noauth {\n'
+    caddyfile += '            path /.well-known/acme-challenge/*\n'
+    caddyfile += '            path /.well-known/change-password\n'
+    caddyfile += '            path /manifest.json\n'
+    caddyfile += '            path /manifest.webmanifest\n'
+    caddyfile += '            path /site.webmanifest\n'
+    caddyfile += '            path /.well-known/security.txt\n'
+    caddyfile += '            path /security.txt\n'
+    caddyfile += '        }\n'
+    caddyfile += '    }\n\n'
 
     for app_name, app_config in config.items():
         external_port = app_config['external_port']
@@ -97,29 +119,54 @@ def generate_caddyfile(config):
         caddyfile += '        file_server\n'
         caddyfile += '    }\n\n'
 
-        if enable_auth:
+        if enable_auth and not is_port_auth_excluded(external_port):
             caddyfile += generate_auth_config(caddy_identifier, web_username, web_password, hostname, internal_port)
-                                                                         
+        else:
+            caddyfile += generate_noauth_config(hostname, internal_port)
+                                                               
         caddyfile += "}\n\n"
 
     return caddyfile, web_username, web_password
 
+# Helper function to generate reverse_proxy block with conditional header_up
+def get_reverse_proxy_block(hostname, internal_port):
+    include_header_up_host = os.environ.get('CADDY_HEADER_UP_HOST', '').lower() == 'true'
+    if include_header_up_host:
+        return f'''
+        header_up Host {hostname}:{internal_port}
+        header_up X-Real-IP {{remote_host}}
+        header_up X-Forwarded-Proto {{scheme}}
+        header_up X-Forwarded-Host {{host}}
+    '''
+    return f'''
+        header_up Host {{upstream_hostport}}
+        header_up X-Real-IP {{remote_host}}
+        header_up X-Forwarded-Proto {{scheme}}
+        header_up X-Forwarded-Host {{host}}
+'''
+
+def generate_noauth_config(hostname, internal_port):
+    no_auth_config = f'''
+    reverse_proxy {hostname}:{internal_port} {{
+        {get_reverse_proxy_block(hostname, internal_port)}
+    }}
+'''
+    return no_auth_config
+
 def generate_auth_config(caddy_identifier, username, password, hostname, internal_port):
     hashed_password = subprocess.check_output([CADDY_BIN, 'hash-password', '-p', password]).decode().strip()
-    
-    # Check if header_up should be included (case insensitive)
-    include_header_up = os.environ.get('PORTAL_HEADER_UP', '').lower() == 'true'
-    
-    # Helper function to generate reverse_proxy block with conditional header_up
-    def get_reverse_proxy_block(hostname, internal_port):
-        if include_header_up:
-            return f'''
-            header_up Host {hostname}:{internal_port}
-'''
-        return ""
-    
-    auth_config = f'''    @token_auth {{
+   
+    auth_config = f'''    
+    import noauth
+
+    @token_auth {{
         query token={password}
+    }}
+
+    handle @noauth {{
+        reverse_proxy {hostname}:{internal_port} {{
+            {get_reverse_proxy_block(hostname, internal_port)}        
+        }}
     }}
 
     @has_valid_auth_cookie {{

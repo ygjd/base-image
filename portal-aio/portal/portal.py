@@ -30,9 +30,6 @@ log_tasks = {}
 MAX_LINES = 600  # Maximum lines to keep in buffer
 # Track all active tasks for easy cancellation
 
-
-
-
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
