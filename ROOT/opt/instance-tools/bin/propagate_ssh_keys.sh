@@ -67,11 +67,11 @@ for user_home in /home/*; do
     fi
 
     # Check and add root's keys
-    while IFS= read -r key; do
-        if ! key_exists "$key" "$user_auth_keys"; then
-            echo "$key" >> "$user_auth_keys"
-            echo "Added key for $username"
-        fi
+    while IFS= read -r key || [ -n "$key" ]; do
+    if ! key_exists "$key" "$user_auth_keys"; then
+        echo "$key" >> "$user_auth_keys"
+        echo "Added key for $username"
+    fi
     done < "$ROOT_AUTH_KEYS"
 
     # Ensure correct permissions
