@@ -15,20 +15,26 @@ fi
 # First run...
 if [[ ! -f /.first_boot_complete ]]; then
     echo "Applying first boot optimizations..."
-    # Ensure our workspace is suitable for rsync operations
-    if [[ ${HYDRATE_WORKSPACE,,} != "false" ]]; then
-        # Touch everything - both files and directories. Consumes space but ensures entire environment is portable
-        echo "Hydrating entire /workspace/ directory"
-        #touch /workspace/ && find /workspace/ -exec touch {} \
-    else
-        # Touch workspace root and all directories only.
-        echo "Skipping hydrate"
-        #touch /workspace/ && find /workspace/ -type d -exec touch {} \
-    fi
+    # Ensure our installed vastai packages is updated
+    /usr/bin/pip install -U vastai
+    # Copy /opt/workspace-internal to /workspace - Brings to top layer and will support mounting a volume
+    # Ensure user 1001 has full access - Avoids permission errors if running with the normal user
+    workspace=${WORKSPACE:-/workspace}
+    mkdir -p "${workspace}/" > /dev/null 2>&1
+    chown -f 1001:1001 "${workspace}/" > /dev/null 2>&1
+    chmod g+s "${workspace}/" > /dev/null 2>&1
+    find "${workspace}/" -type d -exec chmod g+s {} + > /dev/null 2>&1
+    chmod 775 "${workspace}/" > /dev/null 2>&1
+    sudo -u user cp -rn /opt/workspace-internal/* "${workspace}/"
+    find "${workspace}/" -type d -exec chmod g+s {} + > /dev/null 2>&1
+    find "${workspace}/" -not -user 1001 -exec chown 1001:1001 {} +
+    setfacl -R -d -m g:user:rw- "${workspace}/" > /dev/null 2>&1
+    # Initial venv backup - Also runs as a cron job every 30 minutes
+    /opt/instance-tools/bin/venv-backup.sh
     # Populate /etc/environment - Skip HOME directory and ensure values are enclosed in single quotes
     env | grep -v "^HOME=" | awk -F= '{first=$1; $1=""; print first "=\047" substr($0,2) "\047"}' > /etc/environment
     # Ensure users are dropped into the venv on login.  Must be after /.launch has updated PS1 
-    echo 'cd /workspace/ && source /workspace/venv/${ACTIVE_VENV:-main}/bin/activate' | tee -a /root/.bashrc /home/user/.bashrc
+    echo 'cd ${WORKSPACE} && if [ -f "${WORKSPACE}/venv/${ACTIVE_VENV:-main}/bin/activate" ]; then source "${WORKSPACE}/venv/${ACTIVE_VENV:-main}/bin/activate"; else source /venv/${ACTIVE_VENV:-main}/bin/activate; fi' | tee -a /root/.bashrc /home/user/.bashrc
     # Warn CLI users if the container provisioning is not yet complete. Red >>>
     echo '[[ -f /.provisioning ]] && echo -e "\e[91m>>>\e[0m Instance provisioning is not yet complete.\n\e[91m>>>\e[0m Required software may not be ready.\n\e[91m>>>\e[0m See /var/log/portal/provisioning.log or the Instance Portal web app for progress updates\n\n"' | tee -a /root/.bashrc /home/user/.bashrc
     touch /.first_boot_complete
@@ -82,7 +88,6 @@ supervisord_pid=$!
 # - Remove the file /etc/portal.yaml
 # - Re-declare env var PORTAL_CONFIG to include any new applications
 # - run `supervisorctl reload`
-# - Require the user to refresh the Instance Portal web app. TODO add auto page refresh in portal-aio package
 
 if [[ -n $PROVISIONING_SCRIPT ]]; then
     echo "*****"
