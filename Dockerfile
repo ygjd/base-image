@@ -34,8 +34,12 @@ LABEL maintainer="Vast.ai Inc <contact@vast.ai>"
 # Support pipefail so we don't build broken images
 SHELL ["/bin/bash", "-c"]
 
+# Add some useful scripts and config files
+COPY ./ROOT/ /
+
 # Vast.ai environment variables used for Jupyter & Data sync
-ENV DATA_DIRECTORY=/workspace/
+ENV DATA_DIRECTORY=/workspace
+ENV WORKSPACE=/workspace
 
 # Ubuntu 24.04 requires this for compatibility with our /.launch script
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
@@ -143,15 +147,50 @@ RUN \
                 libnvinfer-plugin8; \
         fi \
     fi
-    # Install OpenCL Runtime based on available hardware
+    # Install OpenCL Runtimes
+    ARG TARGETARCH
     RUN \
     set -euo pipefail && \
         if command -v rocm-smi >/dev/null 2>&1; then \
             apt-get install -y rocm-opencl-runtime; \
-        elif [ -n "${NVIDIA_REQUIRE_CUDA:-}" ]; then \
-            DRIVER_VERSION=$(echo "${NVIDIA_REQUIRE_CUDA}" | grep -oP 'driver>=\K\d+' | sort -nr | head -n1) && \
-            if [ -n "${DRIVER_VERSION:-}" ]; then \
-                apt-get install -y libnvidia-compute-${DRIVER_VERSION}; \
+        elif [ -n "${CUDA_VERSION:-}" ]; then \
+            CUDA_MAJOR_MINOR=$(echo ${CUDA_VERSION} | cut -d. -f1,2 | tr -d ".") && \
+            # Refer to https://docs.nvidia.com/deploy/cuda-compatibility/#id3 and set one version below to avoid driver conflicts (patch versions > driver)
+            # Avoid transitional packages - They will cause NVML errors and broken nvidia-smi by bumping the version 
+            if [ "${CUDA_MAJOR_MINOR}" -ge 118 ]; then \
+                case "${CUDA_MAJOR_MINOR}" in \
+                    "118"|"120") \
+                        driver_version=470 \
+                        ;; \
+                    "121") \
+                        driver_version=525 \
+                        ;; \
+                    "122") \
+                        driver_version=525 \
+                        ;; \
+                    "123") \
+                        driver_version=535 \
+                        ;; \
+                    "124") \
+                        driver_version=535 \
+                        ;; \
+                    "125") \
+                        driver_version=545 \
+                        ;; \
+                    "126") \
+                        driver_version=555 \
+                        ;; \
+                    *) \
+                        driver_version=555 \
+                        ;; \
+                esac \
+            else \
+                driver_version=390; \
+            fi && \
+            if [ "${TARGETARCH}" = "arm64" ] && [ "${driver_version}" -lt 510 ]; then \
+                echo "No suitable libnvidia-compute package is available for arm64 with driver ${driver_version}"; \
+            else \
+                apt-get install -y libnvidia-compute-${driver_version}; \
             fi \
         fi && \
         apt-get clean -y
@@ -168,11 +207,11 @@ RUN \
     mkdir -m 700 -p /run/user/1001 && \
     chown 1001:1001 /run/user/1001 && \
     mkdir /run/dbus && \
-    mkdir /workspace/ && \
-    chown 1001:1001 /workspace/ && \
-    chmod g+s /workspace/ && \
-    chmod 775 /workspace/ && \
-    setfacl -d -m g:user:rw- /workspace/
+    mkdir /opt/workspace-internal/ && \
+    chown 1001:1001 /opt/workspace-internal/ && \
+    chmod g+s /opt/workspace-internal/ && \
+    chmod 775 /opt/workspace-internal/ && \
+    setfacl -d -m g:user:rw- /opt/workspace-internal/
 
 # Install NVM for node version management
 RUN \
@@ -195,6 +234,7 @@ RUN \
         python3.10-venv && \
     python3.10 -m venv /opt/portal-aio/venv && \
     mkdir -m 770 -p /var/log/portal && \
+    chown 0:1001 /var/log/portal/ && \
     mkdir -p opt/instance-tools/bin/ && \
     /opt/portal-aio/venv/bin/pip install -r /opt/portal-aio/requirements.txt 2>&1 | tee -a /var/log/portal/portal.log && \
     wget -O /opt/portal-aio/tunnel_manager/cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${TARGETARCH} && \
@@ -231,28 +271,26 @@ RUN \
     apt-get install --no-install-recommends -y \
         python${PYTHON_VERSION}-full \
         python${PYTHON_VERSION}-venv && \
-    mkdir -p /workspace/venv && \
+    mkdir -p /venv && \
     # Create a virtual env - This gives us portability without sacrificing any functionality
-    python${PYTHON_VERSION} -m venv /workspace/venv/main && \
-    /workspace/venv/main/bin/pip install --no-cache-dir \
+    python${PYTHON_VERSION} -m venv /venv/main && \
+    /venv/main/bin/pip install --no-cache-dir \
         wheel \
         huggingface_hub[cli] \
         ipykernel \
         ipywidgets && \
-    /workspace/venv/main/bin/python -m ipykernel install \
+    /venv/main/bin/python -m ipykernel install \
         --name="main" \
         --display-name="Python3 (main venv)" && \
     # Re-add as default.  We don't want users accidentally installing packages in the system python
-    /workspace/venv/main/bin/python -m ipykernel install \
+    /venv/main/bin/python -m ipykernel install \
         --name="python3" \
-        --display-name="Python3 (ipykernel)"
+        --display-name="Python3 (ipykernel)" && \
+    # Add a cron job to regularly backup all venvs in /venv/*
+    echo "*/30 * * * * /opt/instance-tools/bin/venv-backup.sh" | crontab -
 
-# Add some useful scripts and config files
-COPY ./ROOT/ /
 ENV PATH=/opt/instance-tools/bin:${PATH}
 
-#TEST!!!!
-RUN /workspace/venv/main/bin/pip install torch
 CMD ["entrypoint.sh"]
 
 WORKDIR /workspace/
