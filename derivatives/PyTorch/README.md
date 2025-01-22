@@ -22,7 +22,7 @@
 
 This PyTorch container image builds upon the Vast.ai base image, inheriting all its core functionality documented on this page.
 
-Developed from official upstream images, this container includes a comprehensive set of development libraries. The Docker build cache optimizes startup performance when creating derivative images.
+Developed from official upstream images, this container includes a comprehensive set of development libraries and is an ideal alternative to the offical PyTorch images. 
 
 PyTorch comes pre-configured in the primary virtual environment at `/venv/main/`. Multiple versions are available - use the `Version Tag` selector to choose a specific release instead of the default.
 
