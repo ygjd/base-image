@@ -291,6 +291,7 @@ RUN \
 
 ENV PATH=/opt/instance-tools/bin:${PATH}
 
-CMD ["entrypoint.sh"]
+ENTRYPOINT ["/opt/instance-tools/bin/entrypoint.sh"]
+CMD []
 
 WORKDIR /workspace/
