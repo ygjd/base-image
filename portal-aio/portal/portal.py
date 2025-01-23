@@ -1,7 +1,8 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from typing import Optional
 from collections import deque
 import yaml
 import httpx
@@ -53,7 +54,10 @@ tunnels = {}
 tunnel_api_timeout=httpx.Timeout(connect=5.0, read=30.0, write=5.0, pool=5.0)
 
 @app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
+async def read_root(request: Request, token: Optional[str] = None):
+    if token is not None:
+        return RedirectResponse(url="/", status_code=302)
+
     await set_external_ip(request.headers.get("X-Forwarded-Host"))
     config = load_config()
     return templates.TemplateResponse("index.html", {

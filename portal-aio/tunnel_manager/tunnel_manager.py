@@ -431,7 +431,10 @@ async def startup_event():
                 print(f"Failed to start named tunnel process: {str(e)}")
         
         try:
-            default_tunnel = await get_or_create_quick_tunnel("https://localhost:1111")
+            if os.environ.get("ENABLE_HTTPS","").lower() ==  "false":
+                default_tunnel = await get_or_create_quick_tunnel("http://localhost:1111")
+            else:
+                default_tunnel = await get_or_create_quick_tunnel("https://localhost:1111")
             if default_tunnel:
                 print(f"Default Tunnel started for port 1111 - {default_tunnel.tunnel_url}?token={os.environ.get('OPEN_BUTTON_TOKEN')}")
         except Exception as e:
