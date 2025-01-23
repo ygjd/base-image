@@ -31,11 +31,9 @@ main() {
         PORTAL_CONFIG=$(echo "$PORTAL_CONFIG" | tr '|' '\n' | grep -vi jupyter | tr '\n' '|' | sed 's/|$//')
     fi
 
-    # Ensure correct port mappings for Jupyter 
+    # Ensure correct port mappings for Jupyter when running in Jupyter launch mode
     if [[ -f /.launch ]] && grep -qi jupyter /.launch; then
         PORTAL_CONFIG="$(echo "$PORTAL_CONFIG" | sed 's#localhost:8080:18080#localhost:8080:8080#g')"
-    else
-        PORTAL_CONFIG="$(echo "$PORTAL_CONFIG" | sed 's#localhost:8080:8080#localhost:8080:18080#g')"
     fi
 
     # First run...
