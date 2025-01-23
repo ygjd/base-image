@@ -83,7 +83,7 @@ supervisord \
         tee /var/log/portal/supervisor.log &
 supervisord_pid=$!
 
-# Provision the instance with a remote script - This will run on every startup so be careful to avoid re-downloading existing assets
+# Provision the instance with a remote script - This will run on every startup until it has successfully completed without errors
 # This is for configuration of existing images and will also allow for templates to be created without building docker images
 # Experienced users will be able to convert the script to Dockerfile RUN and build a self-contained image
 # NOTICE: If the provisioning script introduces new supervisor processes it must:
@@ -91,7 +91,7 @@ supervisord_pid=$!
 # - Re-declare env var PORTAL_CONFIG to include any new applications
 # - run `supervisorctl reload`
 
-if [[ -n $PROVISIONING_SCRIPT ]]; then
+if [[ -n $PROVISIONING_SCRIPT && ! -f /.provisioning_complete ]]; then
     echo "*****"
     echo "*"
     echo "*"
@@ -103,10 +103,13 @@ if [[ -n $PROVISIONING_SCRIPT ]]; then
     echo "*"
     echo "*****"
     # Only download it if we don't already have it - Allows inplace modification & restart
-    [[ ! -f /provisioning.sh ]] && curl -Lo /tmp/provisioning.sh $PROVISIONING_SCRIPT && \
+    [[ ! -f /provisioning.sh ]] && curl -Lo /provisioning.sh $PROVISIONING_SCRIPT && \
     chmod +x /provisioning.sh && \
-    /provisioning.sh 2>&1 | tee -a /var/log/portal/provisioning.log
+    /provisioning.sh 2>&1 | tee -a /var/log/portal/provisioning.log && \
+    touch /.provisioning_complete && \
     echo "Provisioning complete!" | tee -a /var/log/portal/provisioning.log
+
+    [[ ! -f /.provisioning_complete ]] && echo "Note: Provisioning encountered issues but instance startup will continue" | tee -a /var/log/portal/provisioning.log
 fi
 
 # Remove the blocker and leave supervisord to run
