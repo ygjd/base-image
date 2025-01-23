@@ -130,19 +130,15 @@ def generate_caddyfile(config):
 
 # Helper function to generate reverse_proxy block with conditional header_up
 def get_reverse_proxy_block(hostname, internal_port):
-    include_header_up_host = os.environ.get('CADDY_HEADER_UP_HOST', '').lower() == 'true'
+    include_header_up_host = os.environ.get('CADDY_HEADER_UP_LOCALHOST', '').lower() == 'true'
     if include_header_up_host:
         return f'''
         header_up Host {hostname}:{internal_port}
         header_up X-Real-IP {{remote_host}}
-        header_up X-Forwarded-Proto {{scheme}}
-        header_up X-Forwarded-Host {{host}}
     '''
     return f'''
         header_up Host {{upstream_hostport}}
         header_up X-Real-IP {{remote_host}}
-        header_up X-Forwarded-Proto {{scheme}}
-        header_up X-Forwarded-Host {{host}}
 '''
 
 def generate_noauth_config(hostname, internal_port):
