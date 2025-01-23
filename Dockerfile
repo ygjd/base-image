@@ -64,7 +64,6 @@ RUN \
         # Base system utilities
         acl \
         ca-certificates \
-        openssh-server \
         locales \
         lsb-release \
         curl \
