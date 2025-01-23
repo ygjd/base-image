@@ -5,20 +5,15 @@ ARG BASE_IMAGE
 ARG NODE_VERSION=22.12.0
 
 ### Build Caddy with single port TLS redirect
-FROM golang:1.23.4-bookworm AS caddy_builder
-
-# Install required packages
-RUN apt-get update && apt-get install -y \
-    wget \
-    git
+FROM --platform=$BUILDPLATFORM golang:1.23.4-bookworm AS caddy_builder
 
 # Install xcaddy for the current architecture
-RUN wget -O xcaddy.deb "https://github.com/caddyserver/xcaddy/releases/download/v0.4.4/xcaddy_0.4.4_linux_$(dpkg --print-architecture).deb" && \
-    apt-get install -y ./xcaddy.deb
+RUN go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
 
 # Build Caddy
+ENV CGO_ENABLED=0
 ARG TARGETARCH
-RUN GOARCH=$TARGETARCH xcaddy build \
+RUN GOOS=linux GOARCH=$TARGETARCH xcaddy build \
     --with github.com/caddyserver/caddy/v2=github.com/ai-dock/caddy/v2@httpredirect \
     --with github.com/caddyserver/replace-response
 
