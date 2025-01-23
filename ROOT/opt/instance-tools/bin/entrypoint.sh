@@ -40,6 +40,9 @@ if [[ ! -f /.first_boot_complete ]]; then
     touch /.first_boot_complete
 fi
 
+# Source the file at /etc/environment - We can now edit environment variables in a running instance
+. /opt/instance-tools/bin/export_env.sh
+
 # We may be busy for a while.
 # Indicator for supervisor scripts to prevent launch during provisioning if necessary (if [[ -f /.provisioning ]] ...)
 touch /.provisioning
