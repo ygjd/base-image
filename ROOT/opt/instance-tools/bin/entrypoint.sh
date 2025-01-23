@@ -29,6 +29,8 @@ if [[ ! -f /.first_boot_complete ]]; then
     find "${workspace}/" -type d -exec chmod g+s {} + > /dev/null 2>&1
     find "${workspace}/" -not -user 1001 -exec chown 1001:1001 {} +
     setfacl -R -d -m g:user:rw- "${workspace}/" > /dev/null 2>&1
+    # Let the 'user' account connect via SSH
+    /opt/instance-tools/bin/propagate_ssh_keys.sh
     # Initial venv backup - Also runs as a cron job every 30 minutes
     /opt/instance-tools/bin/venv-backup.sh
     # Populate /etc/environment - Skip HOME directory and ensure values are enclosed in single quotes
@@ -46,9 +48,6 @@ fi
 # We may be busy for a while.
 # Indicator for supervisor scripts to prevent launch during provisioning if necessary (if [[ -f /.provisioning ]] ...)
 touch /.provisioning
-
-# Let the 'user' account connect via SSH
-/opt/instance-tools/bin/propagate_ssh_keys.sh
 
 # Generate the Jupyter certificate if run in SSH/Args Jupyter mode
 if [ ! -f  /etc/openssl-san.cnf ] || ! grep -qi vast /etc/openssl-san.cnf; then
