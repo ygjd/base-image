@@ -1,4 +1,4 @@
-ARG PYTORCH_BASE
+ARG PYTORCH_BASE=vastai/pytorch:2.5.1-cuda-12.1.1
 
 FROM ${PYTORCH_BASE}
 
@@ -19,15 +19,15 @@ ENV SWARM_NO_VENV=1
 RUN \
     set -euo pipefail && \
     [[ -n "${SWARMUI_REF}" ]] || { echo "Must specify SWARMUI_REF"; exit 1; } && \
-    . ${DATA_DIRECTORY}venv/main/bin/activate && \
+    . /venv/main/bin/activate && \
     # We have PyTorch pre-installed so we will check at the end of the install that it has not been clobbered
     torch_version_pre="$(python -c 'import torch; print (torch.__version__)')" && \
     # Install xformers while pinning to the inherited torch version.  Fail build on dependency resolution if matching version is unavailable
     pip install xformers torch==$PYTORCH_VERSION --index-url "${PYTORCH_INDEX_URL}" && \
     # Get SwarmUI and install dependencies
-    cd "${DATA_DIRECTORY}" && \
+    cd /opt/workspace-internal/ && \
     git clone https://github.com/mcmonkeyprojects/SwarmUI && \
-    cd ${DATA_DIRECTORY}SwarmUI && \
+    cd /opt/workspace-internal/SwarmUI && \
     git checkout "${SWARMUI_REF}" && \
     rm -f launchtools/dotnet-install.sh && \
     wget https://dot.net/v1/dotnet-install.sh -O launchtools/dotnet-install.sh && \
@@ -37,7 +37,7 @@ RUN \
     ln -s ${DOTNET_ROOT}/dotnet /usr/bin/dotnet && \
     timeout 120 bash -c '\
         set -euo pipefail && \
-        . ${DATA_DIRECTORY}venv/main/bin/activate && \
+        . /venv/main/bin/activate && \
         ./launch-linux.sh --launch_mode none > /tmp/install-swarmui.log 2>&1 & \
         installer_pid=$! && \
         until grep -q "Program is running" /tmp/install-swarmui.log; do echo "Waiting for SwarmUI installation..."; sleep 5; done && \
