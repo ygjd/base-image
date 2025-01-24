@@ -20,7 +20,7 @@
 
 This Stable Diffusion SwarmUI image is built and maintained by Vast.ai. It contains development libraries to enable building custom extensions and add-ons. Please see the associated documentation below for configuration details.
 
-On first start you will be prompted to confiugure your SwarmUi installation.  If you are a new user, selecting the defaults should work well.
+On first start you will be prompted to configure your SwarmUi installation.  If you are a new user, selecting the defaults should work well.
 
 The installation directory is `/workspace/SwarmUI`, where you can download models and extensions.
 
