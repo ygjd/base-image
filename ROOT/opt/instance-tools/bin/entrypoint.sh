@@ -129,9 +129,9 @@ main() {
         echo "*"
         echo "*****"
         # Only download it if we don't already have it - Allows inplace modification & restart
-        [[ ! -f /provisioning.sh ]] && curl -Lo /provisioning.sh $PROVISIONING_SCRIPT && \
+        [[ ! -f /provisioning.sh ]] && curl -Lo /provisioning.sh "$PROVISIONING_SCRIPT"
         chmod +x /provisioning.sh && \
-        /provisioning.sh 2>&1 | tee -a /var/log/portal/provisioning.log && \
+        (set -o pipefail; /provisioning.sh 2>&1 | tee -a /var/log/portal/provisioning.log) && \
         touch /.provisioning_complete && \
         echo "Provisioning complete!" | tee -a /var/log/portal/provisioning.log
 
