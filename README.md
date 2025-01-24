@@ -1,12 +1,5 @@
 # Vast.ai Base Docker Image
 
-## Status
-
-- Awaiting write access at Dockerhub base-image
-- Repo is private until above issue is resolved
-
-## About
-
 Welcome to the Vast.ai base Docker image project! This repository provides everything you need to build a versatile Docker image that works seamlessly with both Nvidia CUDA (supporting AMD64 & ARM64 architectures) and AMD ROCm (AMD64) instances on [Vast.ai](https://vast.ai).
 
 Getting started is easy - you can either:
