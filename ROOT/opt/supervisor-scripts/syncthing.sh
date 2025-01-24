@@ -17,11 +17,11 @@ if ! grep -qiE "^[^#].*${search_pattern}" /etc/portal.yaml; then
     exit 0
 fi
 
-# We run this as root user because the default SSH login for Vast.ai instances is for root and we want to avoid permission issues
+# We run this as user (uid 1001) because Syncthing displays security warnings if run as root
 run_syncthing() {
     API_KEY=${OPEN_BUTTON_TOKEN:-$(openssl rand -hex 16)}
     /opt/syncthing/syncthing generate
-    sed -i '/^\s*<listenAddress>/d' "/root/.local/state/syncthing/config.xml"
+    sed -i '/^\s*<listenAddress>/d' "/home/user/.local/state/syncthing/config.xml"
     /opt/syncthing/syncthing serve --no-default-folder --gui-address="127.0.0.1:18384" --gui-apikey="${API_KEY}" --no-upgrade &
     syncthing_pid=$!
     echo "Waiting on $syncthing_pid"
