@@ -6,9 +6,8 @@ See the example below for building instructions.
 
 ```bash
 docker buildx build \
-    --no-cache \
     --platform linux/amd64 \
     --build-arg PYTORCH_BASE=vastai/pytorch:2.5.1-cuda-12.1.1 \
     --build-arg A1111_REF=v1.10.0 \
-    -t repo/image:tag --push
+    . -t repo/image:tag --push
 ```
