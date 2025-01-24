@@ -81,6 +81,8 @@ The Tunnels tab displays your active Cloudflare tunnels. You can:
 - Create new 'quick tunnels' to any local port
 - Test applications without opening ports on your instance
 
+Tunnels displayed in this tab will show the direct mapping between the local and tunnel addresses.  Authentication tokens will not be appended so clicking these may lead to an authentication dialog if the auth cookie has not already been set from a previous visit.
+
 Want to use custom domains or virtual networks? Set the `CF_TUNNEL_TOKEN` environment variable to enable domain mapping. Check out the [Cloudflare documentation](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/) for details.
 
 ### Monitoring Your Instance
@@ -271,6 +273,9 @@ Here's a typical provisioning script:
 
 ```bash
 #!/bin/bash
+
+# Cause the script to exit on failure.
+set -eo pipefail
 
 # Activate the main virtual environment
 . /venv/main/bin/activate

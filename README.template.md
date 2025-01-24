@@ -61,7 +61,7 @@ Instead of connecting to ports exposed to the internet, you can use SSH port for
 
 When creating SSH port forwards, use the internal ports listed above. These ports don't require authentication or TLS since they're only accessible through your SSH tunnel. See the [Instance Portal](#open-button-instance-portal) for more details on this security model.
 
-* Note: Jupyter is not proxied so forwarding this will require connection to https://localhost:8080 and you will need to supply the auth token which is stored in the instance in environment variable `JUPYTER_TOKEN`. 
+* Note: Jupyter is not proxied when run in the default 'Jupyter' startup mode, so forwarding this will require a connection to https://localhost:8080 and you will need to supply the auth token which is stored in the instance in environment variable `JUPYTER_TOKEN`.  To run a proxied Jupyter application, you should run the instance in SSH or Entrypoint mode with Jupyter's configuration retained in the `PORTAL_CONFIG` variable.
 
 #### Example: Forwarding Tensorboard to localhost
 
@@ -120,6 +120,8 @@ The Tunnels tab displays your active Cloudflare tunnels. You can:
 - Create new 'quick tunnels' to any local port
 - Test applications without opening ports on your instance
 
+Tunnels displayed in this tab will show the direct mapping between the local and tunnel addresses.  Authentication tokens will not be appended so clicking these may lead to an authentication dialog if the auth cookie has not already been set from a previous visit.
+
 Want to use custom domains or virtual networks? Set the `CF_TUNNEL_TOKEN` environment variable to enable domain mapping. Check out the [Cloudflare documentation](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/) for details.
 
 ![Instance Portal tunnels tab](https://vast-template-images.s3.us-east-005.backblazeb2.com/instance-portal-tunnels.png)
@@ -142,8 +144,6 @@ Need to modify the configuration in a running instance? Edit `/etc/portal.yaml` 
 Jupyter is always started when run with the Jupyter launch mode.  All other software is managed by supervisord. 
 
 Manage application startup by modifying the `PORTAL_CONFIG` environment variable before instance start, or by editing the file `/etc/portal.yaml` in a running instance.
-
-To disable all additional web app features, simply remove environment variables `PORTAL_CONFIG` and `OPEN_BUTTON_PORT`
 
 ### Caddy
 
@@ -256,13 +256,12 @@ The Docker image uses `/opt/instance-tools/bin/entrypoint.sh` as its startup scr
  - Automatically activate the default Python environment
  - Start in the `${WORKSPACE}` directory
 - Creates a backup of the default Python environments
-- Runs any custom setup defined in the `PROVISIONING_SCRIPT` environment variable
+- Runs any custom setup script defined in the `PROVISIONING_SCRIPT` environment variable
 
 **Every Time the Instance Starts:**
 - Sets up SSH access keys
 - Creates new security certificates if needed
 - Launches `supervisord` to manage running applications
-- Executes `/provisioning.sh` for any additional setup tasks
 
 ### Python Package Management
 
@@ -299,6 +298,7 @@ Some more useful environment variables are provided for instance customization.
 | `PORTAL_CONFIG` | string | See note below | Configures the Instance Portal and application startup |
 | `VENV_BACKUP_COUNT` | int | `48` | Number of venv backups to retain |
 | `PROVISIONING_SCRIPT` | string | | URL pointing to a shell script (GitHub Repo, Gist) |
+| `TENSORBOARD_LOG_DIR` | string | `/workspace` | Log directory for Tensorboard |
 
 #### PORTAL_CONFIG
 
@@ -333,7 +333,9 @@ Here's a typical provisioning script:
 
 ```bash
 #!/bin/bash
-set -e
+
+# Cause the script to exit on failure.
+set -eo pipefail
 
 # Activate the main virtual environment
 . /venv/main/bin/activate
