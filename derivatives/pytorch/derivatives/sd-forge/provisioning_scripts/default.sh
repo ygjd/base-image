@@ -1,7 +1,7 @@
 #!/bin/bash
 
-source ${DATA_DIRECTORY}venv/main/bin/activate
-FORGE_DIR=${DATA_DIRECTORY}stable-diffusion-webui-forge
+source /venv/main/bin/activate
+FORGE_DIR=${WORKSPACE}/stable-diffusion-webui-forge
 
 # Packages are installed after nodes so we can fix them...
 
