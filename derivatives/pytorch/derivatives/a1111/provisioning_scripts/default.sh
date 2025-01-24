@@ -1,7 +1,7 @@
 #!/bin/bash
 
-source ${DATA_DIRECTORY}venv/main/bin/activate
-A1111_DIR=${DATA_DIRECTORY}stable-diffusion-webui
+source /venv/main/bin/activate
+A1111_DIR=${WORKSPACE}/stable-diffusion-webui
 
 # Packages are installed after nodes so we can fix them...
 
