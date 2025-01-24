@@ -117,10 +117,6 @@ ENV PULSE_SERVER=unix:${XDG_RUNTIME_DIR}/pulse/native
 
 USER root
 
-# Give write access to user. TODO fixme in base image
-RUN \
-    chown 0:1001 /var/log/portal/
-
 # Install latest Pixel Streaming Infrastructure
 ARG PIXEL_STREAMING_REF
 
