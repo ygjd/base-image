@@ -1,4 +1,4 @@
-ARG PYTORCH_BASE
+ARG PYTORCH_BASE=vastai/pytorch:2.5.1-cuda-12.1.1
 
 FROM ${PYTORCH_BASE}
 
@@ -15,31 +15,31 @@ ARG COMFYUI_REF
 
 RUN \
     [[ -n "${COMFYUI_REF}" ]] || { echo "Must specify COMFYUI_REF" && exit 1; } && \
-    . ${DATA_DIRECTORY}venv/main/bin/activate && \
+    . /venv/main/bin/activate && \
     # We have PyTorch pre-installed so we will check at the end of the install that it has not been clobbered
     torch_version_pre="$(python -c 'import torch; print (torch.__version__)')" && \
     # Install xformers while pinning to the inherited torch version.  Fail build on dependency resolution if matching version is unavailable
     pip install xformers torch==$PYTORCH_VERSION --index-url "${PYTORCH_INDEX_URL}" && \
     # Get ComfyUI and install dependencies (torch should not be pinned to a specific version in the requirements.txt - If it is then our build will probably fail)
-    cd "${DATA_DIRECTORY}" && \
+    cd /opt/workspace-internal/ && \
     git clone https://github.com/comfyanonymous/ComfyUI && \
-    cd ${DATA_DIRECTORY}ComfyUI && \
+    cd /opt/workspace-internal/ComfyUI && \
     git checkout "${COMFYUI_REF}" && \
     pip install --no-cache-dir \
         -r requirements.txt && \
     # Avoid Jupyter directory display bug
-    ln -s ${DATA_DIRECTORY}ComfyUI/models/checkpoints ${DATA_DIRECTORY}ComfyUI/models/ckpt && \
+    ln -s /opt/workspace-internal/ComfyUI/models/checkpoints /opt/workspace-internal/ComfyUI/models/ckpt && \
     # Install critical custom nodes
-    cd ${DATA_DIRECTORY}ComfyUI/custom_nodes && \
+    cd /opt/workspace-internal/ComfyUI/custom_nodes && \
     git clone https://github.com/ltdrdata/ComfyUI-Manager && \
     pip install -r ComfyUI-Manager/requirements.txt && \
     git clone https://github.com/cubiq/ComfyUI_essentials && \
     pip install -r ComfyUI_essentials/requirements.txt && \
     # Download custom models into the build if you want them - None included in default build
-    # wget -O ${DATA_DIRECTORY}ComfyUI/models/checkpoints/model1.safetensors https://url.to.files/model1.safetensors && \
-    # wget -O ${DATA_DIRECTORY}ComfyUI/models/checkpoints/model2.safetensors https://url.to.files/model2.safetensors && \
+    # wget -O /opt/workspace-internal/ComfyUI/models/checkpoints/model1.safetensors https://url.to.files/model1.safetensors && \
+    # wget -O /opt/workspace-internal/ComfyUI/models/checkpoints/model2.safetensors https://url.to.files/model2.safetensors && \
     # Quick startup test in CPU mode to ensure requirements ready and startup succeeds
-    cd ${DATA_DIRECTORY}ComfyUI && \
+    cd /opt/workspace-internal/ComfyUI && \
     LD_PRELOAD=libtcmalloc_minimal.so.4 \
          python main.py \
             --cpu \
@@ -47,9 +47,9 @@ RUN \
             --port 11404 \
             --disable-auto-launch \
             --quick-test-for-ci && \
-    mkdir -p ${DATA_DIRECTORY}ComfyUI/user/default/ComfyUI-Manager/components && \
+    mkdir -p /opt/workspace-internal/ComfyUI/user/default/ComfyUI-Manager/components && \
     # Test 1: Verify PyTorch version is unaltered
     torch_version_post="$(python -c 'import torch; print (torch.__version__)')" && \
-    [[ $pre_torch_version = $post_torch_version ]] || { echo "PyTorch version mismatch (wanted ${torch_version_pre} but got ${torch_version_post})" && exit 1; }
+    [[ $torch_version_pre = $torch_version_post ]] || { echo "PyTorch version mismatch (wanted ${torch_version_pre} but got ${torch_version_post})"; exit 1; }
 
     ENV COMFYUI_ARGS="--disable-auto-launch --port 18188"
