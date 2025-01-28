@@ -223,8 +223,6 @@ We use Supervisor to orchestrate applications in the container. Configuration fi
 
 Rather than directly launching applications, we use wrapper scripts for better control. This allows us to check for application entries in `/etc/portal.yaml` - if an application isn't configured here, we assume you don't want to run it.
 
-With cron as the notable exception, the supervisor startup scripts will refuse to start services unless the environment variable `OPEN_BUTTON_PORT=1111` has been set.  This allows you to use the base image with no additional extras.
-
 Common Supervisor commands:
 ```bash
 # View all processes
