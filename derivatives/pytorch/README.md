@@ -276,7 +276,7 @@ The Docker image uses `/opt/instance-tools/bin/entrypoint.sh` as its startup scr
 
 **Automatic Backups:**
 - Every 30 minutes, the system creates a backup of your Python packages
-- Backups are stored in `/workspace/.venv-backup/{INSTANCE_ID}/`
+- Backups are stored in `/workspace/.venv-backups/{INSTANCE_ID}/`
 - These backups let you:
  - Undo recent package changes
  - Recreate your exact environment on a new instance
