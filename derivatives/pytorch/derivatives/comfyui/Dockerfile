@@ -14,6 +14,7 @@ COPY ./ROOT /
 ARG COMFYUI_REF
 
 RUN \
+    set -euo pipefail && \
     [[ -n "${COMFYUI_REF}" ]] || { echo "Must specify COMFYUI_REF" && exit 1; } && \
     . /venv/main/bin/activate && \
     # We have PyTorch pre-installed so we will check at the end of the install that it has not been clobbered
