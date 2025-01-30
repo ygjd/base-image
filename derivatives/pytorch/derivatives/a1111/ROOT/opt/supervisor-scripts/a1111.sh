@@ -6,7 +6,7 @@ while [ ! -f "$(realpath -q /etc/portal.yaml 2>/dev/null)" ]; do
     sleep 1
 done
 
-# rudimentary check for AUTOMATIC1111 in the portal config
+# Check for AUTOMATIC1111 in the portal config
 search_term="AUTOMATIC1111"
 search_pattern=$(echo "$search_term" | sed 's/[ _-]/[ _-]/g')
 if ! grep -qiE "^[^#].*${search_pattern}" /etc/portal.yaml; then
@@ -15,7 +15,7 @@ if ! grep -qiE "^[^#].*${search_pattern}" /etc/portal.yaml; then
 fi
 
 # Activate the venv
-. ${DATA_DIRECTORY}venv/main/bin/activate
+. /venv/main/bin/activate
 
 # Wait for provisioning to complete
 
@@ -24,8 +24,12 @@ while [ -f "/.provisioning" ]; do
     sleep 10
 done
 
+# Avoid git errors because we run as root but files are owned by 'user'
+export GIT_CONFIG_GLOBAL=/tmp/temporary-git-config
+git config --file $GIT_CONFIG_GLOBAL --add safe.directory '*'
+
 # Launch A1111
 cd ${DATA_DIRECTORY}stable-diffusion-webui
 LD_PRELOAD=libtcmalloc_minimal.so.4 \
         python launch.py \
-        ${A1111_ARGS:---port 17860} | tee -a "/var/log/portal/${PROC_NAME}.log"
+        ${A1111_ARGS:---port 17860} 2>&1 | tee -a "/var/log/portal/${PROC_NAME}.log"
