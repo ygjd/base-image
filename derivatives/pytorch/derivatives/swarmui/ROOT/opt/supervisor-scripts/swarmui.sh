@@ -6,15 +6,16 @@ while [ ! -f "$(realpath -q /etc/portal.yaml 2>/dev/null)" ]; do
     sleep 1
 done
 
-# rudimentary check for fooocus in the portal config
-search_pattern=$(echo "$PROC_NAME" | sed 's/[ _-]/[ _-]/g')
+# Check for swarm in the portal config
+search_term="swarm"
+search_pattern=$(echo "$search_term" | sed 's/[ _-]/[ _-]/g')
 if ! grep -qiE "^[^#].*${search_pattern}" /etc/portal.yaml; then
     echo "Skipping startup for ${PROC_NAME} (not in /etc/portal.yaml)" | tee -a "/var/log/portal/${PROC_NAME}.log"
     exit 0
 fi
 
 # Activate the venv
-. ${DATA_DIRECTORY}venv/main/bin/activate
+. /venv/main/bin/activate
 
 # Wait for provisioning to complete
 
@@ -24,6 +25,6 @@ while [ -f "/.provisioning" ]; do
 done
 
 # Launch SwarmUI
-cd ${DATA_DIRECTORY}SwarmUI
+cd ${WORKSPACE}/SwarmUI
      \
         ./launch-linux.sh ${SWARMUI_ARGS:---launch_mode none --port 17865} | tee -a "/var/log/portal/${PROC_NAME}.log"
