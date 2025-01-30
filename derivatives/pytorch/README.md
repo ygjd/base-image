@@ -1,4 +1,3 @@
-
 # PyTorch (CUDA)
 
 >PyTorch is a deep learning framework that puts Python first.
@@ -9,6 +8,7 @@
 ## Contents
 
 1. [About the PyTorch Image](#about-the-pytorch-image)
+    - [Migrating to a new Instance](#migrating-to-a-new-instance)
 2. [Connecting to the Instance](#connecting-to-the-instance)
 3. [Additional Software](#additional-software)
 4. [Application Management](#application-management)
@@ -28,6 +28,23 @@ PyTorch comes pre-configured in the primary virtual environment at `/venv/main/`
 
 For CUDA 12.4 and newer releases, these images support both AMD64 and ARM64 (Grace) architectures.
 
+### Migrating to a New Instance
+
+#### Required Steps
+
+1. Complete an instance to instance transfer from the source instance to the destination instance. Source and destination directories should both be set to `/workspace/`
+
+2. On the __destination__ instance:
+   - Open a terminal (virtual environment activates automatically)
+   - Navigate to: `/workspace/.venv-backups/{source-instance-id}/`
+   - Run: `pip install --no-cache-dir -r venv-main-latest.txt`
+
+See the [Python Package Management](#python-package-management) section for more details.
+
+#### Important Notes
+
+- Always use the same docker image for both instances
+- For detailed data transfer instructions, consult [vast.ai docs](https://vast.ai/docs/data-management/data-movement)
 
 ## Connecting to the Instance
 
@@ -93,7 +110,7 @@ The Instance Portal is your gateway to managing web applications running on your
 
 2. **Access Your Applications**: Simply click the 'Open' button on your instance card:
 
-![Open Button](https://vast-template-images.s3.us-east-005.backblazeb2.com/instance-card-open-button.png)
+![Open Button](https://raw.githubusercontent.com/vast-ai/base-image/refs/heads/main/docs/images/instance-card-open-button.png)
 
 This sets a cookie using your `OPEN_BUTTON_TOKEN`, granting you access. Without this, you'll see a login prompt (username: `vastai`, password: your `OPEN_BUTTON_TOKEN`).
 
@@ -113,7 +130,7 @@ The dashboard shows all available ports and their corresponding applications. Th
 
 Start, stop, and refresh tunnel links using the dashboard controls.
 
-![Instance Portal landing page](https://vast-template-images.s3.us-east-005.backblazeb2.com/instance-portal-application-list.png)
+![Instance Portal landing page](https://raw.githubusercontent.com/vast-ai/base-image/refs/heads/main/docs/images/instance-portal-application-list.png)
 
 #### Managing Tunnels
 
@@ -126,13 +143,13 @@ Tunnels displayed in this tab will show the direct mapping between the local and
 
 Want to use custom domains or virtual networks? Set the `CF_TUNNEL_TOKEN` environment variable to enable domain mapping. Check out the [Cloudflare documentation](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/) for details.
 
-![Instance Portal tunnels tab](https://vast-template-images.s3.us-east-005.backblazeb2.com/instance-portal-tunnels.png)
+![Instance Portal tunnels tab](https://raw.githubusercontent.com/vast-ai/base-image/refs/heads/main/docs/images/instance-portal-tunnels.png)
 
 #### Monitoring Your Instance
 
 The Logs tab provides live streaming of all `*.log` files from `/var/log/portal/`. Outputs for the included applications are piped to `tee -a /var/log/portal/${PROC_NAME}.log`, making them accessible both within your instance and through the Vast GUI logging button.
 
-![Instance Portal logs tab](https://vast-template-images.s3.us-east-005.backblazeb2.com/instance-portal-logs.png)
+![Instance Portal logs tab](https://raw.githubusercontent.com/vast-ai/base-image/refs/heads/main/docs/images/instance-portal-logs.png)
 
 
 #### Configuration
