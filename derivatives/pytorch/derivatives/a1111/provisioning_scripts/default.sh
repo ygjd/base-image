@@ -44,6 +44,11 @@ function provisioning_start() {
         "${A1111_DIR}/models/Stable-diffusion" \
         "${CHECKPOINT_MODELS[@]}"
 
+    
+    # Avoid git errors because we run as root but files are owned by 'user'
+    export GIT_CONFIG_GLOBAL=/tmp/temporary-git-config
+    git config --file $GIT_CONFIG_GLOBAL --add safe.directory '*'
+
     # Start and exit because webui will probably require a restart
     cd "${A1111_DIR}"
     LD_PRELOAD=libtcmalloc_minimal.so.4 \
