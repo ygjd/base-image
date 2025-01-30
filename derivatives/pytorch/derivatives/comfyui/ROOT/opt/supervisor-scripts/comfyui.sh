@@ -6,15 +6,16 @@ while [ ! -f "$(realpath -q /etc/portal.yaml 2>/dev/null)" ]; do
     sleep 1
 done
 
-# rudimentary check for comfyui in the portal config
-search_pattern=$(echo "$PROC_NAME" | sed 's/[ _-]/[ _-]/g')
+# Check for comfyui in the portal config
+search_term="comfyui"
+search_pattern=$(echo "$search_term" | sed 's/[ _-]/[ _-]/g')
 if ! grep -qiE "^[^#].*${search_pattern}" /etc/portal.yaml; then
     echo "Skipping startup for ${PROC_NAME} (not in /etc/portal.yaml)" | tee -a "/var/log/portal/${PROC_NAME}.log"
     exit 0
 fi
 
 # Activate the venv
-. ${DATA_DIRECTORY}venv/main/bin/activate
+. /venv/main/bin/activate
 
 # Wait for provisioning to complete
 
@@ -23,8 +24,12 @@ while [ -f "/.provisioning" ]; do
     sleep 10
 done
 
+# Avoid git errors because we run as root but files are owned by 'user'
+export GIT_CONFIG_GLOBAL=/tmp/temporary-git-config
+git config --file $GIT_CONFIG_GLOBAL --add safe.directory '*'
+
 # Launch ComfyUI
-cd ${DATA_DIRECTORY}ComfyUI
+cd ${WORKSPACE}/ComfyUI
 LD_PRELOAD=libtcmalloc_minimal.so.4 \
         python main.py \
-        ${COMFYUI_ARGS:- --disable-auto-launch --port 18188} | tee -a "/var/log/portal/${PROC_NAME}.log"
+        ${COMFYUI_ARGS:---disable-auto-launch --port 18188 --enable-cors-header} 2>&1
