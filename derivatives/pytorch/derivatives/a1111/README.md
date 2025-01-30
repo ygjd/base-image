@@ -1,4 +1,4 @@
-# AUTOMATIC1111 Stable Diffusion Web UI
+# AUTOMATIC1111 Stable Diffusion Web UI 
 
 > A web interface for Stable Diffusion, implemented using the Gradio library.
 
@@ -54,6 +54,7 @@ supervisorctl restart a1111
    - Open a terminal (virtual environment activates automatically)
    - Navigate to: `/workspace/.venv-backups/{source-instance-id}/`
    - Run: `pip install --no-cache-dir -r venv-main-latest.txt`
+   - Reboot the instance
 
 #### Important Notes
 
@@ -88,7 +89,6 @@ Instead of connecting to ports exposed to the internet, you can use SSH port for
 | Service | External Port | Internal Port |
 | --- | --- | --- |
 | Instance Portal | 1111 | 11111 |
-| Tensorboard | 6006 | 16006 |
 | A1111 | 7860 | 17860 |
 | Syncthing | 8384 | 18384 |
 | Jupyter | 8080 | 8080 |
@@ -213,6 +213,8 @@ Visualization toolkit for machine learning experiments, helping you track metric
 
 Configure startup of Tensorboard through the `PORTAL_CONFIG` environment variable.
 
+Tensorboard is disabled by default in this template
+
 ### Cron
 
 The reliable Linux task scheduler, perfect for automating routine tasks in your instance:
@@ -332,7 +334,6 @@ Some more useful environment variables are provided for instance customization.
 | `PORTAL_CONFIG` | string | See note below | Configures the Instance Portal and application startup |
 | `VENV_BACKUP_COUNT` | int | `48` | Number of venv backups to retain |
 | `PROVISIONING_SCRIPT` | string | | URL pointing to a shell script (GitHub Repo, Gist) |
-| `TENSORBOARD_LOG_DIR` | string | `/workspace` | Log directory for Tensorboard |
 | `A1111_ARGS` | string | `--port 17860` | Startup arguments to pass to A1111 |
 
 #### PORTAL_CONFIG
