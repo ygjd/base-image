@@ -261,6 +261,7 @@ RUN \
     # Supplementary Python
     apt-get install --no-install-recommends -y \
         python${PYTHON_VERSION}-full \
+        python${PYTHON_VERSION}-dev \
         python${PYTHON_VERSION}-venv && \
     mkdir -p /venv && \
     # Create a virtual env - This gives us portability without sacrificing any functionality
