@@ -49,7 +49,7 @@ main() {
         chmod g+s "${workspace}/" > /dev/null 2>&1
         find "${workspace}/" -type d -exec chmod g+s {} + > /dev/null 2>&1
         chmod 775 "${workspace}/" > /dev/null 2>&1
-        sudo -u user cp -rn /opt/workspace-internal/* "${workspace}/"
+        sudo -u user cp -rn /opt/workspace-internal/. "${workspace}/"
         find "${workspace}/" -type d -exec chmod g+s {} + > /dev/null 2>&1
         find "${workspace}/" -not -user 1001 -exec chown 1001:1001 {} +
         setfacl -R -d -m g:user:rw- "${workspace}/" > /dev/null 2>&1
