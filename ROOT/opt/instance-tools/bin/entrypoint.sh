@@ -39,7 +39,7 @@ main() {
     # First run...
     if [[ ! -f /.first_boot_complete ]]; then
         echo "Applying first boot optimizations..."
-        # Ensure our installed vastai packages is updated
+        # Ensure our installed vastai package is updated
         /usr/bin/pip install -U vastai
         # Copy /opt/workspace-internal to /workspace - Brings to top layer and will support mounting a volume
         # Ensure user 1001 has full access - Avoids permission errors if running with the normal user
@@ -58,7 +58,7 @@ main() {
         # Initial venv backup - Also runs as a cron job every 30 minutes
         /opt/instance-tools/bin/venv-backup.sh
         # Populate /etc/environment - Skip HOME directory and ensure values are enclosed in single quotes
-        env | grep -v "^HOME=" | awk -F= '{first=$1; $1=""; print first "=\047" substr($0,2) "\047"}' > /etc/environment
+        env | grep -v "^HOME=" | awk -F= '{ value = substr($0, index($0, "=") + 1); printf "%s='\''%s'\''\n", $1, value }' > /etc/environment
         # Ensure users are dropped into the venv on login.  Must be after /.launch has updated PS1 
         echo 'cd ${WORKSPACE} && if [ -f "${WORKSPACE}/venv/${ACTIVE_VENV:-main}/bin/activate" ]; then source "${WORKSPACE}/venv/${ACTIVE_VENV:-main}/bin/activate"; else source /venv/${ACTIVE_VENV:-main}/bin/activate; fi' | tee -a /root/.bashrc /home/user/.bashrc
         # Warn CLI users if the container provisioning is not yet complete. Red >>>
