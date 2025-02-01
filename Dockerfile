@@ -68,6 +68,7 @@ RUN \
         sudo \
         moreutils \
         nano \
+        vim \
         less \
         jq \
         git \
@@ -227,7 +228,7 @@ RUN \
     mkdir -m 770 -p /var/log/portal && \
     chown 0:1001 /var/log/portal/ && \
     mkdir -p opt/instance-tools/bin/ && \
-    /opt/portal-aio/venv/bin/pip install -r /opt/portal-aio/requirements.txt 2>&1 | tee -a /var/log/portal/portal.log && \
+    /opt/portal-aio/venv/bin/pip install -r /opt/portal-aio/requirements.txt && \
     wget -O /opt/portal-aio/tunnel_manager/cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${TARGETARCH} && \
     chmod +x /opt/portal-aio/tunnel_manager/cloudflared && \
     # Make these portal-provided tools easily reachable
