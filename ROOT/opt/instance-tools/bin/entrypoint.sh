@@ -105,8 +105,7 @@ main() {
     supervisord \
         -n \
         -u root \
-        -c /etc/supervisor/supervisord.conf | \
-            tee /var/log/portal/supervisor.log &
+        -c /etc/supervisor/supervisord.conf &
     supervisord_pid=$!
 
     # Provision the instance with a remote script - This will run on every startup until it has successfully completed without errors
