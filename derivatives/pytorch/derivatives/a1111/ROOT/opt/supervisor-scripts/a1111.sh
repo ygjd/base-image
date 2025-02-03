@@ -20,7 +20,7 @@ fi
 # Wait for provisioning to complete
 
 while [ -f "/.provisioning" ]; do
-    echo "$PROC_NAME startup paused until instance provisioning has completed (/.provisioning present)"
+    echo "$PROC_NAME startup paused until instance provisioning has completed (/.provisioning present)" | tee -a "/var/log/portal/${PROC_NAME}.log"
     sleep 10
 done
 
