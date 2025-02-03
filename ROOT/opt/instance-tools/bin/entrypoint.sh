@@ -119,7 +119,6 @@ main() {
     # Experienced users will be able to convert the script to Dockerfile RUN and build a self-contained image
     # NOTICE: If the provisioning script introduces new supervisor processes it must:
     # - Remove the file /etc/portal.yaml
-    # - Re-declare env var PORTAL_CONFIG to include any new applications
     # - run `supervisorctl reload`
 
     if [[ -n $PROVISIONING_SCRIPT && ! -f /.provisioning_complete ]]; then
