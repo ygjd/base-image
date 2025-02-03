@@ -45,4 +45,4 @@ run_with_retry() {
     done
 }
 
-run_syncthing | tee -a "/var/log/portal/${PROC_NAME}.log"
+run_syncthing 2>&1 | tee -a "/var/log/portal/${PROC_NAME}.log"

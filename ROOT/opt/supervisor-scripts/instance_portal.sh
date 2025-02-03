@@ -15,4 +15,4 @@ if ! grep -qiE "^[^#].*${search_pattern}" /etc/portal.yaml; then
 fi
 
 cd /opt/portal-aio/portal
-/opt/portal-aio/venv/bin/fastapi run --host 127.0.0.1 --port 11111 portal.py | tee -a "/var/log/portal/${PROC_NAME}.log"
+/opt/portal-aio/venv/bin/fastapi run --host 127.0.0.1 --port 11111 portal.py 2>&1 | tee -a "/var/log/portal/${PROC_NAME}.log"

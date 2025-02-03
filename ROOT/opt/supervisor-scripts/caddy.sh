@@ -10,7 +10,7 @@ touch /etc/portal.yaml
 if [[ -f /etc/Caddyfile ]]; then
     # Frontend log viewer will force a page reload if this string is detected
     echo "Starting Caddy..." | tee -a "/var/log/portal/${PROC_NAME}.log"
-    /opt/portal-aio/caddy_manager/caddy run --config /etc/Caddyfile | tee -a "/var/log/portal/${PROC_NAME}.log"
+    /opt/portal-aio/caddy_manager/caddy run --config /etc/Caddyfile 2>&1 | tee -a "/var/log/portal/${PROC_NAME}.log"
 else
     echo "Not Starting Caddy - No config file was generated" | tee -a "/var/log/portal/${PROC_NAME}.log"
 fi
