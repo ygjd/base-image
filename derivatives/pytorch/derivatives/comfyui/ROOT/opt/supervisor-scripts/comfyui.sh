@@ -32,4 +32,4 @@ git config --file $GIT_CONFIG_GLOBAL --add safe.directory '*'
 cd ${WORKSPACE}/ComfyUI
 LD_PRELOAD=libtcmalloc_minimal.so.4 \
         python main.py \
-        ${COMFYUI_ARGS:---disable-auto-launch --port 18188 --enable-cors-header} 2>&1
+        ${COMFYUI_ARGS:---disable-auto-launch --port 18188 --enable-cors-header} 2>&1 | tee -a "/var/log/portal/${PROC_NAME}.log"
