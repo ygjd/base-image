@@ -7,11 +7,11 @@
 # 3) We get unauthenticated access without TLS via SSH forwarding 
 # 4) it gives us a shell in Args runtype
 
-[[ -f /.launch ]] && grep -qi jupyter /.launch && echo "Refusing to start ${PROC_NAME} (/.launch managing)" && exit
+[[ -f /.launch ]] && grep -qi jupyter /.launch &&  echo "Refusing to start ${PROC_NAME} (/.launch managing)" | tee -a "/var/log/portal/${PROC_NAME}.log" && exit
 
 # User can configure startup by removing the reference in /etc.portal.yaml - So wait for that file and check it
 while [ ! -f "$(realpath -q /etc/portal.yaml 2>/dev/null)" ]; do
-    echo "Waiting for /etc/portal.yaml before starting ${PROC_NAME}..."
+    echo "Waiting for /etc/portal.yaml before starting ${PROC_NAME}..." | tee -a "/var/log/portal/${PROC_NAME}.log"
     sleep 1
 done
 
@@ -19,7 +19,7 @@ done
 search_term="jupyter"
 search_pattern=$(echo "$search_term" | sed 's/[ _-]/[ _-]?/gi')
 if ! grep -qiE "^[^#].*${search_pattern}" /etc/portal.yaml; then
-    echo "Skipping startup for ${PROC_NAME} (not in /etc/portal.yaml)"
+    echo "Skipping startup for ${PROC_NAME} (not in /etc/portal.yaml)" | tee -a "/var/log/portal/${PROC_NAME}.log"
     exit 0
 fi
 
@@ -44,4 +44,4 @@ jupyter "${type,,}" \
         --ServerApp.preferred_dir="$DATA_DIRECTORY" \
         --ServerApp.terminado_settings="{'shell_command': ['/bin/bash']}" \
         --ContentsManager.allow_hidden=True \
-        --KernelSpecManager.ensure_native_kernel=False
+        --KernelSpecManager.ensure_native_kernel=False 2>&1 | tee -a "/var/log/portal/${PROC_NAME}.log"
