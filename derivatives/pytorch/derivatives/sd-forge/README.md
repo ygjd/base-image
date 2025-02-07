@@ -6,14 +6,19 @@
 
 ## Contents
 
-1. [About Forge](#about-forge)
+1. [About the Forge Image](#about-the-forge-image)
+    - [Upgrading Forge](#upgrading-Forge)
+    - [Migrating to a new Instance](#migrating-to-a-new-instance)
 2. [Connecting to the Instance](#connecting-to-the-instance)
 3. [Additional Software](#additional-software)
 4. [Application Management](#application-management)
-5. [Dynamic Provisioning](#dynamic-provisioning)
-6. [Useful Links](#useful-links)
+5. [Instance Startup Process](#instance-startup-process)
+6. [Python Package Management](#python-package-management)
+7. [Environment Variables](#environment-variables)
+8. [Dynamic Provisioning](#dynamic-provisioning)
+9. [Useful Links](#useful-links)
 
-## About Forge
+## About the Forge Image
 
 This Stable Diffusion WebUI Forge image is built and maintained by Vast.ai. It contains development libraries to enable building custom extensions and add-ons. Please see the associated documentation below for configuration details.
 
@@ -36,11 +41,27 @@ pip install -r requirements-versions.txt
 supervisorctl restart forge
 ```
 
-### Transferring to a New Instance
+### Migrating to a New Instance
 
-The `/workspace/` directory contains all of Forge's code, models, extensions, and dependencies. To migrate to a different instance, simply copy this directory from one instance to another and then reboot. Everything will be preserved.
+#### Required Steps
 
-You can find more information about copying data between instances [here](https://vast.ai/docs/data-management/data-movement).
+1. On the __destination__ instance:
+   - Open a terminal (virtual environment activates automatically)
+   - Run: `cd /workspace/ && rm -rf Fooocus`
+
+2. Complete an instance to instance transfer from the source instance to the destination instance. Source and destination directories should both be set to `/workspace/`
+
+3. On the __destination__ instance:
+   - Open a terminal (virtual environment activates automatically)
+   - Navigate to: `/workspace/.venv-backups/{source-instance-id}/`
+   - Run: `pip install --no-cache-dir -r venv-main-latest.txt`
+   - Reboot the instance
+
+#### Important Notes
+
+- Always use the same docker image for both instances
+- For detailed data transfer instructions, consult [vast.ai docs](https://vast.ai/docs/data-management/data-movement)
+
 
 ## Connecting to the Instance
 
@@ -175,6 +196,8 @@ Visualization toolkit for machine learning experiments, helping you track metric
 - Customize log directory via `TENSORBOARD_LOG_DIR` environment variable
 - Automatically detects and displays new experiments
 
+Tensorboard is disabled by default in this template
+
 ### Cron
 
 The reliable Linux task scheduler, perfect for automating routine tasks in your instance:
@@ -271,5 +294,5 @@ supervisorctl reload
 ## Useful Links
 
 - [Forge](https://github.com/lllyasviel/stable-diffusion-webui-forge)
-- [Image Source](https://github.com/vast-ai/base-image/tree/main/derivatives/PyTorch/derivatives/sd-forge)
+- [Image Source](https://github.com/vast-ai/base-image/tree/main/derivatives/pytorch/derivatives/sd-forge)
 - [Base Image](https://github.com/vast-ai/base-image)
