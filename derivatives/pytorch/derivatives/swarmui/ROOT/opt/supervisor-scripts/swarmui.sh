@@ -24,7 +24,10 @@ while [ -f "/.provisioning" ]; do
     sleep 10
 done
 
+# Avoid git errors because we run as root but files are owned by 'user'
+export GIT_CONFIG_GLOBAL=/tmp/temporary-git-config
+git config --file $GIT_CONFIG_GLOBAL --add safe.directory '*'
+
 # Launch SwarmUI
 cd ${WORKSPACE}/SwarmUI
-     \
-        ./launch-linux.sh ${SWARMUI_ARGS:---launch_mode none --port 17865} | tee -a "/var/log/portal/${PROC_NAME}.log"
+./launch-linux.sh ${SWARMUI_ARGS:---launch_mode none --port 17865} | tee -a "/var/log/portal/${PROC_NAME}.log"
