@@ -1,4 +1,4 @@
-ARG VAST_BASE=vastai/base-image:cuda-12.1.1-cudnn-devel-ubuntu22.04
+ARG VAST_BASE=vastai/base-image:cuda-12.1.1-cudnn8-devel-ubuntu22.04
 
 FROM ${VAST_BASE}
 
@@ -7,8 +7,12 @@ LABEL org.opencontainers.image.source="https://github.com/vastai/"
 LABEL org.opencontainers.image.description="Unreal Pixel Streaming image suitable for Vast.ai."
 LABEL maintainer="Vast.ai Inc <contact@vast.ai>"
 
+# Copy Supervisor configuration and startup scripts
+COPY ./ROOT /
+
 # Install a basic GPU accelerated graphical environment
 RUN \
+    set -euo pipefail && \
     add-apt-repository ppa:pipewire-debian/pipewire-upstream -y && \
     apt-get update && \
     apt-get install --no-install-recommends -y \
@@ -88,6 +92,7 @@ RUN \
 
 # Install latest Vulkan version
 RUN \
+    set -euo pipefail && \
     VULKAN_API_VERSION=$(dpkg -s libvulkan1 | grep -oP 'Version: [0-9|\.]+' | grep -oP '[0-9]+(\.[0-9]+)(\.[0-9]+)') && \
     mkdir -pm755 /etc/vulkan/icd.d/ && \
     printf '{"file_format_version" : "1.0.0","ICD": {"library_path": "libGLX_nvidia.so.0","api_version" : "%s"}}' $VULKAN_API_VERSION > /etc/vulkan/icd.d/nvidia_icd.json
@@ -95,6 +100,7 @@ RUN \
 # Switch to user for simplicity.  We will switch back to root as all Vast.ai instances default to root login anyway
 USER user
 RUN \
+    set -euo pipefail && \
     mkdir /run/user/1001/dbus && \
     mkdir -p /home/user/.config/dbus && \
     echo '<!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-BUS Bus Configuration 1.0//EN" "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">\
@@ -120,7 +126,8 @@ USER root
 # Install latest Pixel Streaming Infrastructure
 ARG PIXEL_STREAMING_REF
 
-RUN set -e && \
+RUN \
+    set -euo pipefail && \
     [ -n "${PIXEL_STREAMING_REF}" ] || (echo "Must specify PIXEL_STREAMING_REF" && exit 1) && \
     touch /tmp/install.log && \
     git clone https://github.com/EpicGamesExt/PixelStreamingInfrastructure -b ${PIXEL_STREAMING_REF} /opt/PixelStreamingInfrastructure && \
@@ -131,5 +138,4 @@ RUN set -e && \
     pkill -f "platform_scripts/bash/start.sh" && \
     rm -f /tmp/install.log
 
-# Copy Supervisor configuration and startup scripts
-COPY ./ROOT /
+
