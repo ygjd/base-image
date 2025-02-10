@@ -47,7 +47,7 @@ supervisorctl restart forge
 
 1. On the __destination__ instance:
    - Open a terminal (virtual environment activates automatically)
-   - Run: `cd /workspace/ && rm -rf Fooocus`
+   - Run: `cd /workspace/ && rm -rf stable-diffusion-webui-forge`
 
 2. Complete an instance to instance transfer from the source instance to the destination instance. Source and destination directories should both be set to `/workspace/`
 
