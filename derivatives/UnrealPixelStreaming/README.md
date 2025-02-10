@@ -6,20 +6,25 @@
 
 ## Contents
 
-1. [About Pixel Streaming](#about-pixel-streaming)
+1. [About the Pixel Streaming Image](#about-the-pixel-streaming-image)
 2. [Connecting to the Instance](#connecting-to-the-instance)
 3. [Additional Software](#additional-software)
 4. [Application Management](#application-management)
-5. [Dynamic Provisioning](#dynamic-provisioning)
-6. [Useful Links](#useful-links)
+5. [Instance Startup Process](#instance-startup-process)
+6. [Python Package Management](#python-package-management)
+7. [Environment Variables](#environment-variables)
+8. [Dynamic Provisioning](#dynamic-provisioning)
+9. [Useful Links](#useful-links)
 
-## About Pixel Streaming
+## About the Pixel Streaming Image
 
 This Unreal Engine Pixel Streaming image is built and maintained by Vast.ai and extends the feature-packed Vast.ai base docker image.  Much of the documentation below is common to all templates built upon this base.
 
 The Pixel Streaming infrastructure is pre-configured and will run as soon as your instance has finished loading - You simply need to launch your project and it will be available in your web browser on mapped port 3000.
 
-Upon launch of your instance, you will need to upload your pre-built Unreal Engine project to the `/workspace` directory. Ideally this should a a compressed archive file (tar.gz, zip etc).  You can do this via scp or sftp - But the simplest method is via Jupyter upload.  Once the upload is completed you should open a terminal either through SSH or a Jupyter terminal.
+Upon launch of your instance, you will need to upload your pre-built Unreal Engine project to the `/workspace` directory. Ideally this should a a compressed archive file (tar.gz, zip etc).  You can do this via scp or sftp - But the simplest method is via Jupyter upload.  
+
+Once the upload is completed you should open a terminal either through SSH or you can use a Jupyter terminal.
 
 You'll need to operate as a non-root user otherwise your application will refuse to run:
 
@@ -27,13 +32,14 @@ You'll need to operate as a non-root user otherwise your application will refuse
 su -l user
 ```
 
-you should then extract your application and run the following command:
+You should then extract your application and run the following command:
 
 ```
 xvfb-run /workspace/path/to/application/executable -RenderOffscreen -Vulkan -PixelStreamingUrl=ws://localhost:8888
 ```
 
-This will stream debugging information to the terminal - Leave this running and visit the Pixel Streaming web interface where you'll find your project display.
+This will stream debugging information to the terminal - Leave this running and visit the Pixel Streaming web interface where you'll find your project's graphical display.
+
 
 ## Connecting to the Instance
 
@@ -41,7 +47,7 @@ There are several methods you can use to interact with your instance.
 
 ### Jupyter Button
 
-Press the Jupyter button to be immediately logged in to  Jupyter Lab or Notebook (Configure this in the template settings).  Here you can:
+Press the Jupyter button to be immediately logged in to Jupyter Lab or Notebook (Configure this in the template settings).  Here you can:
 - Manage your files
 - Run Jupyter notebooks
 - Open a terminal session
@@ -63,15 +69,14 @@ Instead of connecting to ports exposed to the internet, you can use SSH port for
 | Service | External Port | Internal Port |
 | --- | --- | --- |
 | Instance Portal | 1111 | 11111 |
-| Tensorboard | 6006 | 16006 |
-| Syncthing | 8384 | 18384 |
+| Pixel Streaming | 3000 | 13000 |
 | Jupyter | 8080 | 8080 |
 
 When creating SSH port forwards, use the internal ports listed above. These ports don't require authentication or TLS since they're only accessible through your SSH tunnel. See the [Instance Portal](#open-button-instance-portal) for more details on this security model.
 
 * Note: Jupyter is not proxied so forwarding this will require connection to https://localhost:8080 and you will need to supply the auth token which is stored in the instance in environment variable `JUPYTER_TOKEN`. 
 
-#### Example: Forwarding Tensorboard to localhost
+#### Example: Forwarding the Pixel Streaming interface to localhost
 
 To forward the pixel streaming interface to your local machine:
 
@@ -87,7 +92,6 @@ This command:
 - Maintains a secure, encrypted connection through SSH
 
 The application will now be available on your local machine without requiring the authentication that would be needed when accessing the externally exposed port.
-
 
 ### Open Button (Instance Portal)
 
@@ -151,6 +155,19 @@ Manage application startup by modifying the `PORTAL_CONFIG` environment variable
 
 To disable all additional web app features, simply remove environment variables `PORTAL_CONFIG` and `OPEN_BUTTON_PORT`
 
+### Caddy
+
+Caddy is a web server that adds HTTPS encryption and user authentication to web applications running on your cloud instance.
+
+Here's how it works:
+- Your applications run on your cloud instance, but they're only accessible through the instance's `localhost`
+- Caddy acts as a secure gateway between these applications and the internet
+- When you try to access your cloud applications from your personal computer, you connect through Caddy
+
+This setup gives you two convenient ways to access your cloud applications:
+- Through your web browser with HTTPS security and login protection
+- Directly through SSH Port Forwarding from your computer, bypassing the need for HTTPS or login credentials
+
 ### COTURN
 
 TURN/STUN server implementation that enables WebRTC connections across restrictive networks and NATs. Core features:
@@ -202,8 +219,6 @@ We use Supervisor to orchestrate applications in the container. Configuration fi
 
 Rather than directly launching applications, we use wrapper scripts for better control. This allows us to check for application entries in `/etc/portal.yaml` - if an application isn't configured here, we assume you don't want to run it.
 
-With cron as the notable exception, the supervisor startup scripts will refuse to start services unless the environment variable `OPEN_BUTTON_PORT=1111` has been set.  This allows you to use the base image with no additional extras.
-
 Common Supervisor commands:
 ```bash
 # View all processes
@@ -212,7 +227,7 @@ supervisorctl status
 # Control specific services
 supervisorctl start coturn
 supervisorctl stop coturn
-supervisorctl restart piuxel-streaming
+supervisorctl restart pixel-streaming
 
 # Reload configuration after changes
 supervisorctl reload
