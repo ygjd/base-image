@@ -27,9 +27,11 @@ No models are included in the Docker image and you must specify one with the env
 
 ### Serve
 
-`vllm serve` will launch using the model defined in environment variable `VLLM_MODEL` with the arguments defined in `VLLM_ARGS`. You will need to modify these variables according to your needs.
+`vllm serve` will be launched at startup using the model defined in environment variable `VLLM_MODEL` with the arguments defined in `VLLM_ARGS`. You will need to modify these variables according to your needs.
 
-The default model `deepseek-ai/DeepSeek-R1-Distill-Llama-8B` requires approximately 41GB VRAM to run with the default settings.  It may take some time to download the model, but the API will become available when the download has completed.
+The default model `deepseek-ai/DeepSeek-R1-Distill-Llama-8B` requires approximately 21GB VRAM to run with a reduced conext window and this template has been configured to hide offers with less VRAM.
+
+It may take some time to download the model, but the API will become available when the download has completed.
 
 Find out how to interact with the API in the [Programmatic Access](#programmatic-access) section.
 
