@@ -29,4 +29,5 @@ fi
 
 ice="--turn ${TURN_SERVER:-${PUBLIC_IPADDR:-localhost}:${VAST_UDP_PORT_70000:-3478}} --turn-user ${TURN_USER:-user} --turn-pass ${TURN_PASSWORD:-${OPEN_BUTTON_TOKEN:-password}} --stun stun.l.google.com:19302"
 
-/opt/PixelStreamingInfrastructure/SignallingWebServer/platform_scripts/bash/start.sh "$ice" | tee -a "/var/log/portal/${PROC_NAME}.log"
+/opt/PixelStreamingInfrastructure/SignallingWebServer/platform_scripts/bash/start.sh ${PIXEL_STREAMING_ARGS:-} ${ice}
+
