@@ -35,6 +35,20 @@ RUN \
     rm -f /tmp/ollama.tgz && \
     # Ensure Ollama data persists on the workspace - WebUI directory is created on startup
     mkdir -p /opt/workspace-internal/ollama && \
+    # Get Llama.cpp
+    latest=$(curl -s https://api.github.com/repos/ggerganov/llama.cpp/releases/latest | grep -Po '"tag_name": "\K.*?(?=")') && \
+    mkdir -p /opt/llama.cpp/bin && \
+    cd /tmp && \
+    apt-get install libcurl4-openssl-dev && \
+    git clone https://github.com/ggerganov/llama.cpp && \
+    cmake llama.cpp -B /tmp/llama.cpp/build \
+        -DBUILD_SHARED_LIBS=OFF -DGGML_CUDA=ON -DLLAMA_CURL=ON && \
+    cmake --build /tmp/llama.cpp/build --config Release -j --clean-first --target llama-quantize llama-cli llama-server llama-gguf-split && \
+    cp /tmp/llama.cpp/build/bin/llama-* /opt/llama.cpp/bin && \
+    rm -rf /tmp/llama.cpp && \
+    mkdir -p /opt/workspace-internal/llama.cpp/models/ && \
     # Test 1: Verify PyTorch version is unaltered
     torch_version_post="$(python -c 'import torch; print (torch.__version__)')" && \
     [[ $torch_version_pre = $torch_version_post ]] || { echo "PyTorch version mismatch (wanted ${torch_version_pre} but got ${torch_version_post})"; exit 1; }
+
+    ENV PATH="${PATH}:/opt/llama.cpp/bin"

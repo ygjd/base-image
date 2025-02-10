@@ -31,5 +31,9 @@ cd ${$WORKSPACE}
 
 [[ -z $OLLAMA_BASE_URL ]] && export OLLAMA_BASE_URL="http://127.0.0.1:21434"
 
+[[ -z $OPENAI_API_BASE_URL ]] && export OPENAI_API_BASE_URL="http://127.0.0.1:20000"
+
+[[ -z $OPENAI_API_KEY ]] && export OPENAI_API_KEY="${OPEN_BUTTON_TOKEN:-none}"
+
 export DATA_DIR="${DATA_DIR:-${WORKSPACE:-/workspace}/webui}"
 open-webui serve ${OPENWEBUI_ARGS:---host 127.0.0.1 --port 17500} | tee -a "/var/log/portal/${PROC_NAME}.log"
