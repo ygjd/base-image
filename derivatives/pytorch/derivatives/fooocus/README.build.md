@@ -8,6 +8,6 @@ See the example below for building instructions.
 docker buildx build \
     --platform linux/amd64 \
     --build-arg PYTORCH_BASE=vastai/pytorch:2.5.1-cuda-12.1.1 \
-    --build-arg FOOOCUS_REF=d7439b2 \
+    --build-arg FOOOCUS_REF=59f183a \
     . -t repo/image:tag --push
 ```
