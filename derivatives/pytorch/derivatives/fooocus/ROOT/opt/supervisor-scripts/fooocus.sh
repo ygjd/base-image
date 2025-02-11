@@ -6,15 +6,16 @@ while [ ! -f "$(realpath -q /etc/portal.yaml 2>/dev/null)" ]; do
     sleep 1
 done
 
-# rudimentary check for fooocus in the portal config
-search_pattern=$(echo "$PROC_NAME" | sed 's/[ _-]/[ _-]/g')
+# Check for fooocus in the portal config
+search_term="fooocus"
+search_pattern=$(echo "$search_term" | sed 's/[ _-]/[ _-]/g')
 if ! grep -qiE "^[^#].*${search_pattern}" /etc/portal.yaml; then
-    echo "Skipping startup for ${PROC_NAME} (not in /etc/portal.yaml)" | tee -a "/var/log/portal/${PROC_NAME}.log"
+    echo "Skipping startup for ${PROC_NAME} (not in /etc/portal.yaml)"
     exit 0
 fi
 
 # Activate the venv
-. ${DATA_DIRECTORY}venv/main/bin/activate
+. /venv/main/bin/activate
 
 # Wait for provisioning to complete
 
@@ -23,8 +24,12 @@ while [ -f "/.provisioning" ]; do
     sleep 10
 done
 
-# Launch Forge
+# Avoid git errors because we run as root but files are owned by 'user'
+export GIT_CONFIG_GLOBAL=/tmp/temporary-git-config
+git config --file $GIT_CONFIG_GLOBAL --add safe.directory '*'
+
+# Launch Fooocus
 cd ${DATA_DIRECTORY}Fooocus
 LD_PRELOAD=libtcmalloc_minimal.so.4 \
         python launch.py \
-        ${FOOOCUS_ARGS:---port 17865} | tee -a "/var/log/portal/${PROC_NAME}.log"
+        ${FOOOCUS_ARGS:---port 17865} 2>&1 | tee -a "/var/log/portal/${PROC_NAME}.log"
