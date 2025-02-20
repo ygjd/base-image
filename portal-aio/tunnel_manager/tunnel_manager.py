@@ -3,6 +3,7 @@ import re
 import requests
 import asyncio
 import json
+import yaml
 from datetime import datetime, timedelta
 from typing import Dict, Optional
 from fastapi import FastAPI, HTTPException
@@ -18,6 +19,12 @@ app = FastAPI()
 CLOUDFLARED_BIN = "/opt/portal-aio/tunnel_manager/cloudflared"
 CF_TUNNEL_TOKEN = os.environ.get('CF_TUNNEL_TOKEN')
 cloudflared_account_process: Optional[asyncio.subprocess.Process] = None
+
+def load_config():
+    yaml_path = '/etc/portal.yaml'
+    if os.path.exists(yaml_path):
+        with open(yaml_path, 'r') as file:
+            return yaml.safe_load(file)['applications']
 
 # Function to fetch the public IP address
 def get_public_ip():
@@ -430,16 +437,32 @@ async def startup_event():
             except Exception as e:
                 print(f"Failed to start named tunnel process: {str(e)}")
         
+        scheme = "http" if os.environ.get("ENABLE_HTTPS","").lower() == "false" else "https"
         try:
-            if os.environ.get("ENABLE_HTTPS","").lower() ==  "false":
-                default_tunnel = await get_or_create_quick_tunnel("http://localhost:1111")
-            else:
-                default_tunnel = await get_or_create_quick_tunnel("https://localhost:1111")
-            if default_tunnel:
-                print(f"Default Tunnel started for port 1111 - {default_tunnel.tunnel_url}?token={os.environ.get('OPEN_BUTTON_TOKEN')}")
-        except Exception as e:
-            print(f"Failed to create default tunnel: {str(e)}")
-            # Sometimes Cloudflare Tunnels don't work (No SLA) - This must never bee fatal
+            # Track unique ports and their first app name
+            unique_ports = {}
+            for app_name, app_config in load_config().items():
+                port = app_config['external_port']
+                if port not in unique_ports:
+                    unique_ports[port] = app_name
+
+            # Create tunnels only for unique ports
+            tunnel_tasks = [
+                get_or_create_quick_tunnel(f"{scheme}://localhost:{port}")
+                for port in unique_ports.keys()
+            ]
+            default_tunnels = await asyncio.gather(*tunnel_tasks, return_exceptions=True)
+
+            # Print results
+            for port, result in zip(unique_ports.keys(), default_tunnels):
+                app_name = unique_ports[port]
+                if isinstance(result, Exception):
+                    print(f"Failed to create default tunnel for {app_name} (port {port}): {str(result)}")
+                elif result:
+                    print(f"Default Tunnel started for {app_name} (port {port}) - {result.tunnel_url}?token={os.environ.get('OPEN_BUTTON_TOKEN')}")
+        except:
+            # User can still create tunnels in the UI
+            pass
     except Exception as e:
         print(f"Startup failed: {str(e)}")
         raise
