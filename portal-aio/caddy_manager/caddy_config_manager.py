@@ -97,8 +97,19 @@ def generate_caddyfile(config):
     caddyfile += '            path /site.webmanifest\n'
     caddyfile += '            path /.well-known/security.txt\n'
     caddyfile += '            path /security.txt\n'
+    caddyfile += '            path /health.ico\n'
     caddyfile += '        }\n'
     caddyfile += '    }\n\n'
+
+    # Add a simple icon we can load in javascript to ensure tunnel DNS resolution
+    caddyfile += '    (healthicon) {\n'
+    caddyfile += '            route /health.ico {\n'
+    caddyfile += '                header Content-Type image/x-icon\n'
+    caddyfile += '                respond 200 {\n'
+    caddyfile += '                    body "GIF89a\\x01\\x00\\x01\\x00\\x80\\x00\\x00\\xff\\xff\\xff\\x00\\x00\\x00!\\xf9\\x04\\x01\\x00\\x00\\x00\\x00,\\x00\\x00\\x00\\x00\\x01\\x00\\x01\\x00\\x00\\x02\\x02D\\x01\\x00;"\n'
+    caddyfile += '                }\n'
+    caddyfile += '            }\n'
+    caddyfile += '        }\n\n'
 
     for app_name, app_config in config.items():
         external_port = app_config['external_port']
@@ -160,6 +171,7 @@ def generate_auth_config(caddy_identifier, username, password, hostname, interna
     }}
 
     handle @noauth {{
+        import healthicon
         reverse_proxy {hostname}:{internal_port} {{
             {get_reverse_proxy_block(hostname, internal_port)}        
         }}
