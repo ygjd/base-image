@@ -1,890 +1,229 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Application List</title>
+    <title>Vast.ai Instance Portal</title>
     <link rel="icon" type="image/png" href="/static/assets/favicon.png" sizes="48x48" />
-    <script src="https://unpkg.com/htmx.org@1.6.1"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.28.0/feather.min.js"></script>
-
-    <style>
-        :root {
-        --primary-color: #3498db;
-        --background-color: #f8f9fa;
-        --text-color: #333;
-        --border-color: #e0e0e0;
-        --button-bg: #f1f3f5;
-        --button-hover: #e9ecef;
-        --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    }
-
-    body {
-        font-family: var(--font-family);
-        line-height: 1.6;
-        color: var(--text-color);
-        margin: 0;
-        padding: 20px;
-        background-color: var(--background-color);
-    }
-
-    h1 {
-        text-align: center;
-        color: var(--text-color);
-        margin-bottom: 30px;
-        font-weight: 300;
-    }
-
-    .table-container {
-        overflow-x: auto;
-    }
-
-    table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
-        background-color: white;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        border-radius: 4px;
-    }
-
-    th, td {
-        padding: 12px 15px;
-        text-align: left;
-        border-bottom: 1px solid var(--border-color);
-    }
-
-    th {
-        background-color: var(--background-color);
-        font-weight: 600;
-        text-transform: uppercase;
-        font-size: 0.8em;
-        letter-spacing: 0.5px;
-    }
-
-    tr:last-child td {
-        border-bottom: none;
-    }
-
-    .links-column {
-        display: flex;
-        flex-direction: column;
-        min-width: 200px;
-        gap: 4px;
-    }
-
-    .link-entry:empty {
-        display: none;
-    }
-
-    .link {
-        display: inline-block;
-        padding: 2px 0;
-        text-decoration: none;
-        color: var(--primary-color);
-        font-size: 0.9em;
-        transition: color 0.3s;
-    }
-
-    .link:hover {
-        color: #2980b9;
-    }
-
-    .button-group {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-    }
-
-    .button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 6px 12px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 0.9em;
-        background-color: var(--button-bg);
-        color: var(--text-color);
-        transition: background-color 0.3s, opacity 0.3s;
-    }
-
-    .button:hover:not(:disabled) {
-        background-color: var(--button-hover);
-    }
-
-    .button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-
-    .button i {
-        margin-right: 4px;
-    }
-
-    @media (max-width: 768px) {
-        .table-container {
-            margin: 0 -20px;
-        }
-
-        table {
-            border-radius: 0;
-        }
-
-        th {
-            display: none;
-        }
-
-        tr {
-            display: block;
-            margin-bottom: 20px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        td {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 15px;
-        }
-
-        td::before {
-            content: attr(data-label);
-            font-weight: 600;
-            margin-right: 10px;
-        }
-
-        .button-group {
-            justify-content: flex-end;
-        }
-    }
-        .loading-wrapper {
-            height: 25px;
-        }
-        .loading-indicator {
-            display: none;
-            align-items: center;
-            justify-content: center;
-            padding: 10px;
-        }
-
-        .loading-indicator::after {
-            content: "";
-            width: 20px;
-            height: 20px;
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid #3498db;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .toast-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            max-width: 300px;
-            z-index: 1000;
-        }
-
-        .toast {
-            padding: 15px 20px;
-            margin-bottom: 10px;
-            border-radius: 4px;
-            color: #172B4D;
-            opacity: 0;
-            transition: opacity 0.3s ease-in-out;
-        }
-
-        .toast.show {
-            opacity: 1;
-        }
-
-        .toast-success {
-            background-color: #DCFFF1;
-        }
-
-        .toast-error {
-            background-color: #FFECEB;
-        }
-
-        @media (max-width: 768px) {
-            .toast-container {
-                top: 0;
-                right: 0;
-                left: 0;
-                max-width: 100%;
-            }
-
-            .toast {
-                border-radius: 0;
-            }
-        }
-        .tabs {
-            display: flex;
-            margin-bottom: 20px;
-        }
-
-        .tab {
-            padding: 10px 20px;
-            cursor: pointer;
-            border: 1px solid var(--border-color);
-            background-color: var(--background-color);
-        }
-
-        .tab.active {
-            background-color: white;
-            border-bottom: none;
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        #instance-logs {
-            position: relative;
-        }
-        #log-console {
-            display: flex;
-            flex-direction: column;
-            background-color: #282c34;
-            color: #abb2bf;
-            font-family: 'Courier New', monospace;
-            line-height: 1.3;
-            padding: 15px;
-            height: 400px;
-            min-height: 50vh;
-            max-height: 70vh;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            border-radius: 8px;
-        }
-        #log-console span {
-            padding: 3px 0;
-        }
-
-        #log-console .warning {
-            color: #e5c07b;
-        }
-
-        #log-console .error {
-            color: #e06c75;
-        }
-
-        #pause-button {
-            position: absolute;
-            height: 30px;
-            width: 30px;
-            border-radius: 50%;
-            bottom: 10px;
-            right: 20px;
-            background: rgba(255, 255, 255, 0.8);
-            border: none;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
-        }
-        #pause-button:hover {
-            background-color: rgba(255, 255, 255, 1);
-        }
-        #pause-button i, #pause-button svg {
-            color: #313131;
-            width: 16px;
-            height: 16px;
-        }
-
-        .new-tunnel-form {
-            margin-top: 20px;
-            display: flex;
-            gap: 10px;
-        }
-
-        .new-tunnel-form input {
-            flex-grow: 1;
-            padding: 8px;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-        }
-
-        .new-tunnel-form button {
-            padding: 8px 16px;
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .new-tunnel-form button:hover {
-            background-color: #2980b9;
-        }
-    </style>
+    <link rel="stylesheet" href="/static/assets/style.css">
 </head>
 <body>
-
-    <h1>Instance Portal</h1>
-
-    <div class="tabs">
-        <div class="tab active" onclick="switchTab('application-list')">Application List</div>
-        <div class="tab" onclick="switchTab('tunnel-list')">Tunnels</div>
-        <div class="tab" onclick="switchTab('instance-logs')">Instance Logs</div>
-    </div>
-
-    <div id="application-list" class="tab-content active">
-        <div class="table-container">
-            <table>
-                <tr>
-                    <th>Port</th>
-                    <th>Application Name</th>
-                    <th>Links</th>
-                    <th>Quick-Tunnel Actions</th>
-                </tr>
-                {% for app_name, app in applications.items() %}
-                <tr>
-                    <td data-label="Port">{{ app.external_port }}</td>
-                    <td data-label="Application Name">{{ app.name }}</td>
-                    <td data-label="Links">
-                        <div class="links-column" id="links-{{ app.hostname }}_{{ app.external_port }}">
-                            <span class="link-entry direct" id="links-{{ app.hostname }}_{{ app.external_port }}-direct" data-port="{{ app.external_port }}" data-path="{{ app.open_path }}"></span>
-                            <span class="link-entry named" id="links-{{ app.hostname }}_{{ app.external_port }}-named-tunnel-external" data-port="{{ app.external_port }}" data-path="{{ app.open_path }}"></span>
-                            {% if app.internal_port != app.external_port %}
-                            <span class="link-entry named" id="links-{{ app.hostname }}_{{ app.external_port }}-named-tunnel-internal" data-port="{{ app.internal_port }}" data-path="{{ app.open_path }}"></span>
-                            {% endif %}
-                            <span class="link-entry quick" id="links-{{ app.hostname }}_{{ app.external_port }}-quick-tunnel" data-target_url="{{ proxy_address }}:{{ app.external_port }}" data-path="{{ app.open_path }}"></span>
-                            <div class="loading-indicator" id="loading-{{ app.hostname }}_{{ app.external_port }}" data-target_url="{{ proxy_address }}:{{ app.external_port }}" data-path="{{ app.open_path }}"></div>
-                        </div>
-                    </td>
-                    <td data-label="Quick-Tunnel Actions">
-                        <div class="button-group">
-                            <button class="button start-button" hx-post="/start-quick-tunnel/{{ proxy_address }}:{{ app.external_port }}" data-target_url="{{ proxy_address }}:{{ app.external_port }}" data-path="{{ app.open_path }}" hx-target="#links-{{ app.hostname }}_{{ app.external_port }}-quick-tunnel" hx-swap="none" id="start-{{ app.hostname }}_{{ app.external_port }}" title="Start Quick Tunnel">
-                                <i data-feather="play" style="width: 16px; height: 16px;"></i>
-                            </button>
-                            <button class="button stop-button" hx-post="/stop-quick-tunnel/{{ proxy_address }}:{{ app.external_port }}" data-target_url="{{ proxy_address }}:{{ app.external_port }}" data-path="{{ app.open_path }}" hx-target="#links-{{ app.hostname }}_{{ app.external_port }}-quick-tunnel" hx-swap="none" id="stop-{{ app.hostname }}_{{ app.external_port }}" disabled title="Stop Quick Tunnel">
-                                <i data-feather="square" style="width: 16px; height: 16px;"></i>
-                            </button>
-                            <button class="button refresh-button" hx-post="/refresh-quick-tunnel/{{ proxy_address }}:{{ app.external_port }}" data-target_url="{{ proxy_address }}:{{ app.external_port }}" data-path="{{ app.open_path }}" hx-target="#links-{{ app.hostname }}_{{ app.external_port }}-quick-tunnel" hx-swap="none" id="refresh-{{ app.hostname }}_{{ app.external_port }}" title="Refresh Tunnel">
-                                <i data-feather="refresh-cw" style="width: 16px; height: 16px;"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </table>
+    <div id="fullpage-loader" class="fullpage-loader">
+        <div class="loader-content">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+            </svg>
+            <div class="loader-text">Loading Instance Portal...</div>
         </div>
     </div>
-
-    <div id="tunnel-list" class="tab-content">
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Target URL</th>
-                        <th>Tunnel URL</th>
-                        <th>Type</th>
-                        <th>Quick-Tunnel Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="tunnel-table-body">
-                    <!-- Tunnel rows will be dynamically inserted here -->
-                </tbody>
-            </table>
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1 class="sidebar-title">Vast.ai</h1>
+            <div class="instance-id">Instance: {{ instance.id }}</div>
+            <div class="instance-spec">{{ instance.gpu }}</div>
+            <div class="system-stats">
+                <div class="stat-item">
+                    <div class="stat-label">GPU</div>
+                    <div class="stat-bar">
+                        <div id="gpu-fill" class="stat-fill" style="width: 0%"></div>
+                    </div>
+                    <div id="gpu-tooltip" class="stat-tooltip">Loading...</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Memory</div>
+                    <div class="stat-bar">
+                        <div id="ram-fill" class="stat-fill" style="width: 0%"></div>
+                    </div>
+                    <div id="ram-tooltip" class="stat-tooltip">Loading...</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Disk</div>
+                    <div class="stat-bar">
+                        <div id="disk-fill" class="stat-fill" style="width: 0%"></div>
+                    </div>
+                    <div id="disk-tooltip" class="stat-tooltip">Loading...</div>
+                </div>
+            </div>
         </div>
-        <div class="loading-wrapper">
-            <div class="loading-indicator" id="loading-tunnel-list"></div>
+
+        <nav class="nav-items">
+            <a class="nav-item active" data-page="apps-page" href="#/apps">
+                <div class="nav-item-content">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    <div>
+                        <span class="nav-label">Applications</span>
+                        <span class="nav-subtitle">Manage Your Services</span>
+                    </div>
+                </div>
+            </a>
+            <a class="nav-item" data-page="tunnels-page" href="#/tunnels">
+                <div class="nav-item-content">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="M8 11h8"/><path d="M12 15V7"/></svg>
+                    <div>
+                        <span class="nav-label">Tunnels</span>
+                        <span class="nav-subtitle">Open New Ports</span>
+                    </div>
+                </div>
+            </a>
+            <a class="nav-item" data-page="logs-page" href="#/logs">
+                <div class="nav-item-content">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg>
+                    <div>
+                        <span class="nav-label">Instance Logs</span>
+                        <span class="nav-subtitle">Debugging</span>
+                    </div>
+                </div>
+            </a>
+            <a class="nav-item" data-page="tools-page" href="#/tools">
+                <div class="nav-item-content">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                    <div>
+                        <span class="nav-label">Tools & Help</span>
+                        <span class="nav-subtitle">Resources & Guides</span>
+                    </div>
+                </div>
+            </a>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <div class="mobile-header">
+            <button class="menu-toggle" onclick="window.app.toggleSidebar()">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <div class="mobile-title">Vast.ai</div>
         </div>
-        <form hx-post="/start-quick-tunnel" hx-target="body" hx-trigger="submit" hx-swap="none" class="new-tunnel-form" hx-vals='js:{url: getValidUrl()}'>
-            <input type="text" id="new-tunnel-url" name="url" placeholder="Enter target URL (e.g., {{ proxy_address }}:8000)" required>
-            <button type="submit">New Tunnel</button>
-        </form>
-    </div>
 
-    <div id="instance-logs" class="tab-content">
-        <div id="log-console"></div>
-        <button id="pause-button" onclick="togglePause()">
-            <i data-feather="pause" style="width: 24px; height: 24px;"></i>
-        </button>
-    </div>
+        <div class="page-header">
+            <h1 class="page-title">Applications</h1>
+        </div>
 
-    <div class="toast-container" id="toast-container"></div>
+        <!-- Apps Page -->
+        <div id="apps-page" class="page-container">
+            <div id="app-grid" class="grid"></div>
+        </div>
 
+        <!-- Tunnels Page -->
+        <div id="tunnels-page" class="page-container" style="display: none;">
+            <div class="tunnel-management">
+                <div class="tunnel-management-header">
+                    <h2>Manage Tunnels</h2>
+                </div>
+                <div class="tunnel-form">
+                    <input type="text" id="target-url" class="tunnel-input" placeholder="Enter target URL (e.g., https://localhost:8000)" />
+                    <button class="tunnel-btn" id="create-tunnel-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        Create New Tunnel
+                    </button>
+                </div>
+                <div class="tunnel-loading">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="tunnels-list">
+                <div class="tunnels-header">
+                    <div>Target URL</div>
+                    <div>Tunnel URL</div>
+                    <div>Actions</div>
+                </div>
+                <div class="tunnel-items" id="tunnel-table-body">
+                    
+                </div>
+            </div>
+        </div>
+        
+        <!-- Logs Page -->
+        <div id="logs-page" class="page-container" style="display: none;">
+            <div class="logs-header">
+                <div class="logs-actions">
+                    <button class="secondary-btn" id="copyLogsBtn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        Copy Logs
+                    </button>
+                    <button class="secondary-btn" id="downloadLogsBtn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        Download Logs
+                    </button>
+                </div>
+            </div>
+            <div id="instance-logs">
+                <div class="logs-viewer" id="log-console"></div>
+                <button id="pause-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="6" y="4" width="4" height="16" rx="1" />
+                        <rect x="14" y="4" width="4" height="16" rx="1" />
+                        </svg>
+                </button>
+            </div>
+        </div>
+
+         <!-- Tools & Help Page -->
+         <div id="tools-page" class="page-container" style="display: none;">
+            <div class="tools-grid">
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"></path><path d="m14 7 3 3"></path></svg>
+                        <h3>CLI Tool</h3>
+                    </div>
+                    <p>Manage your instances directly from the command line with our powerful CLI tool.</p>
+                    <div class="tool-card-actions">
+                        <a href="https://docs.vast.ai/cli" target="_blank" class="tool-card-btn">Installation Guide</a>
+                        <a href="https://docs.vast.ai/cli/reference" target="_blank" class="tool-card-btn secondary">Documentation</a>
+                    </div>
+                </div>
+
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path></svg>
+                        <h3>Quick Start Guide</h3>
+                    </div>
+                    <p>New to Vast.ai? Get started with our comprehensive guide for beginners.</p>
+                    <div class="tool-card-actions">
+                        <a href="https://docs.vast.ai/quickstart" target="_blank" class="tool-card-btn">Read Guide</a>
+                    </div>
+                </div>
+
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 0 1 9-9"></path></svg>
+                        <h3>Community Hub</h3>
+                    </div>
+                    <p>Join our community forums to get help, share experiences, and connect with other users.</p>
+                    <div class="tool-card-actions">
+                        <a href="https://discord.gg/hSuEbSQ4X8" target="_blank" class="tool-card-btn">Join Discord</a>
+                    </div>
+                </div>
+
+                <div class="tool-card">
+                    <div class="tool-card-header">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"></path><path d="M7 7h.01"></path></svg>
+                        <h3>Best Practices</h3>
+                    </div>
+                    <p>Learn how to optimize your workflow and get the most out of your instances.</p>
+                    <div class="tool-card-actions">
+                        <a href="https://docs.vast.ai/guides/best-practices" target="_blank" class="tool-card-btn">View Guide</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
     <script>
-        // Global variables
-        let quickTunnels = {}
-        let namedTunnels = {}
-        let applications = {};
-
-        // Tabs Functionality
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById(tabId).classList.add('active');
-            if (tabId == "instance-logs") {
-                scrollToBottom();
-            }
+        const instance = {
+            "id": "{{ instance.id }}",
+            "gpu": "{{ instance.gpu }}"
         }
         
-        async function loadExistingTunnels() {
-            // Load named tunnels
-            try {
-                const response = await fetch('/get-named-tunnels');
-                if (response.ok) {
-                    const fetchedNamedTunnels = await response.json();
-                    for (const tunnel of fetchedNamedTunnels) {
-                        namedTunnels[tunnel.targetUrl] = { url: tunnel.tunnelUrl, type: 'named' };
-                    }
-                } else {
-                    console.error('Failed to load named tunnels:', await response.text());
-                }
-            } catch (error) {
-                console.error('Error loading named tunnels:', error);
-            }
-
-            // Load quick tunnels
-            try {
-                const response = await fetch('/get-all-quick-tunnels');
-                if (response.ok) {
-                    const FetchedQuickTunnels = await response.json();
-                    for (const tunnel of FetchedQuickTunnels) {
-                        quickTunnels[tunnel.targetUrl] = { url: tunnel.tunnelUrl, type: 'quick' };
-                        updateQuickTunnelLink(tunnel.targetUrl, tunnel.tunnelUrl);
-                    }
-                } else {
-                    console.error('Failed to load quick tunnels:', await response.text());
-                }
-            } catch (error) {
-                console.error('Error loading quick tunnels:', error);
-            }
-
-            updateTunnelTable();
-        }
-
-        function updateTunnelTable() {
-            const tableBody = document.getElementById('tunnel-table-body');
-            if (!tableBody) {
-                console.error('Tunnel table body not found');
-                return;
-            }
-            tableBody.innerHTML = '';
-
-            for (const [targetUrl, tunnel] of Object.entries(namedTunnels)) {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${targetUrl}</td>
-                    <td><a class="link" href="${tunnel.url}" target="_blank">${tunnel.url}</a></td>
-                    <td>Named</td>
-                    <td></td>
-                `;
-                tableBody.appendChild(row);
-            }
-
-            for (const [targetUrl, tunnel] of Object.entries(quickTunnels)) {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${targetUrl}</td>
-                    <td>
-                        <a class="link" href="${tunnel.url}" target="_blank">${tunnel.url}</a>
-                        <div class="loading-indicator" data-target_url="${targetUrl}"></div></td>
-                    <td>Quick</td>
-                    <td>
-                        <div class="button-group">
-                            <button class="button stop-button" hx-post="/stop-quick-tunnel/${targetUrl}" data-target_url="${targetUrl}" hx-target="body" hx-swap="none" title="Stop Quick Tunnel">
-                                <i data-feather="square" style="width: 16px; height: 16px;"></i>
-                            </button>
-                            
-                            <button class="button refresh-button" hx-post="/refresh-quick-tunnel/${targetUrl}" data-target_url="${targetUrl}" hx-target="body" hx-swap="none" title="Refresh Tunnel">
-                                <i data-feather="refresh-cw" style="width: 16px; height: 16px;"></i>
-                            </button>
-                        </div>
-                    </td>
-                `;
-                tableBody.appendChild(row);
-                htmx.process(document.body);
-            }
-
-            feather.replace();
-        }
-
-        function getValidUrl() {
-            const urlInput = document.getElementById('new-tunnel-url');
-            let url = urlInput.value.trim();
-            
-            // Check if the URL starts with http:// or https://
-            if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                url = "http://" + url
-            }
-            
-            return url;
-        }
-
-        document.querySelector('.new-tunnel-form').addEventListener('htmx:configRequest', function(event) {
-            const url = getValidUrl();
-            if (url) {
-                event.detail.path = `/start-quick-tunnel/${encodeURIComponent(url)}`;
-            } else {
-                event.preventDefault(); // Prevent the request if URL is invalid
-            }
+        document.addEventListener('DOMContentLoaded', async () => {
+            window.app = await InstancePortal.init();            
+            console.log('Application initialized');
         });
-
-        // Logs Functionality
-
-        let logStream;
-        let isPaused = false;
-        const logConsole = document.getElementById('log-console');
-        const pauseButton = document.getElementById('pause-button');
-
-        function togglePause() {
-            isPaused = !isPaused;
-            pauseButton.innerHTML = isPaused
-                ? '<i data-feather="play" style="width: 24px; height: 24px;"></i>'
-                : '<i data-feather="pause" style="width: 24px; height: 24px;"></i>';
-            feather.replace();
-            if (!isPaused) {
-                scrollToBottom();
-            }
-        }
-
-        function scrollToBottom() {
-            if (!isPaused) {
-                logConsole.scrollTop = logConsole.scrollHeight;
-            }
-        }
-
-        function fetchLogs() {
-            if (logStream) {
-                logStream.close();
-            }
-
-            logStream = new EventSource('/stream-logs');
-            let lastRefreshTime = Date.now();
-
-            logStream.onmessage = function(event) {
-                if (!isPaused && event.data !== "<span></span>") {
-                    logConsole.innerHTML += event.data;
-                    logConsole.scrollTop = logConsole.scrollHeight;
-
-                    // Check for refresh trigger in log message, but only if we haven't recently refreshed
-                    if (event.data.includes("Starting Caddy...") && (Date.now() - lastRefreshTime > 5000)) {
-                        lastRefreshTime = Date.now();  // Update the timestamp
-                        showToast('Application list updating, refreshing page...', 'success');
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 1000);
-                    }
-
-                    while (logConsole.childElementCount > 600) {
-                        logConsole.removeChild(logConsole.firstChild);
-                    }
-                    scrollToBottom();
-                }
-            };
-        }
-
-        function updateButtonStates(target_url, hasQuickTunnel) {
-            var startButtons = document.querySelectorAll(`.button.start-button[data-target_url="${target_url}"]`);
-            var stopButtons = document.querySelectorAll(`.button.stop-button[data-target_url="${target_url}"]`);
-            var refreshButtons = document.querySelectorAll(`.button.refresh-button[data-target_url="${target_url}"]`);
-
-            if (hasQuickTunnel) {
-                startButtons.forEach(startButton => {
-                    startButton.disabled = true;
-                });
-                stopButtons.forEach(stopButton => {
-                    stopButton.disabled = false;
-                });
-                refreshButtons.forEach(refreshButton => {
-                    refreshButton.disabled = false;
-                });
-            } else {
-                startButtons.forEach(startButton => {
-                    startButton.disabled = false;
-                });
-                stopButtons.forEach(stopButton => {
-                    stopButton.disabled = true;
-                });
-                refreshButtons.forEach(refreshButton => {
-                    refreshButton.disabled = true;
-                });
-            }
-        }
-
-        function loadDirectLink(port) {
-            loadDirectLinkWithRetry(port)
-        }
-
-        async function loadDirectLinkWithRetry(port, retryCount = 0, maxRetries = 8) {  // 8 retries over ~30 seconds
-            const baseDelay = 500; // Start with 500ms delay
-            const maxDelay = 5000; // Cap at 5 seconds
-            
-            // Show loading indicator for this port
-            const loadingIndicators = document.querySelectorAll(`div.loading-indicator[data-target_url*=":${port}"]`);
-            loadingIndicators.forEach(indicator => {
-                indicator.style.display = 'flex';
-            });
-
-            try {
-                const response = await fetch('/get-direct-url/' + port);
-                if (response.status === 200) {
-                    const url = await response.text();
-                    updateDirectLink(port, url);
-                    // Hide loading indicator on success
-                    loadingIndicators.forEach(indicator => {
-                        indicator.style.display = 'none';
-                    });
-                    return;
-                }
-            } catch (error) {
-                console.warn(`Attempt ${retryCount + 1} failed for port ${port}:`, error);
-            }
-
-            // If we haven't succeeded and haven't exceeded max retries
-            if (retryCount < maxRetries) {
-                // Calculate delay with exponential backoff (500ms, 1s, 2s, 4s, etc.)
-                const delay = Math.min(baseDelay * Math.pow(2, retryCount), maxDelay);
-                
-                setTimeout(() => {
-                    loadDirectLinkWithRetry(port, retryCount + 1, maxRetries);
-                }, delay);
-            } else {
-                // We've timed out - clear the link and hide loading indicator
-                console.warn(`Timed out loading direct link for port ${port}`);
-                updateDirectLink(port, false);
-                loadingIndicators.forEach(indicator => {
-                    indicator.style.display = 'none';
-                });
-            }
-        }
-
-        function loadExistingQuickTunnel(target_url) {
-            fetch('/get-existing-quick-tunnel/' + target_url)
-                .then(response => {
-                    if (response.status === 200) {
-                        return response.text();
-                    }
-                    throw new Error('No existing quick tunnel');
-                })
-                .then(tunnelUrl => {
-                    updateQuickTunnelLink(target_url, tunnelUrl);
-                    updateButtonStates(target_url, true);
-                })
-                .catch(() => {
-                    updateButtonStates(target_url, false);
-                });
-        }
-
-        function loadExistingNamedTunnel(port) {
-            fetch('/get-existing-named-tunnel/' + port)
-                .then(response => {
-                    if (response.status === 200) {
-                        return response.text();
-                    }
-                })
-                .then(tunnelUrl => {
-                    updateNamedTunnelLink(port, tunnelUrl);
-                })
-        }
-
-        function updateDirectLink(port, url) {
-            let linkElements = document.querySelectorAll(`span.link-entry.direct[data-port="${port}"]`);
-            if (url != false) {
-                linkElements.forEach(linkElement => {
-                    let path = linkElement.dataset.path
-                    full_url = url + path
-                    let separator = full_url.includes("?") ? "&" : "?";
-                    linkElement.innerHTML = '<a href="' + full_url + "{% if auth_token %}" + separator + "token={{ auth_token }}{% endif %}" + '" class="link" target="_blank">' + url + '</a>';
-                });
-            } else {
-                linkElements.forEach(linkElement => {
-                    linkElement.innerHTML = '';
-                });
-            }
-        }
-
-        function updateQuickTunnelLink(target_url, tunnelUrl) {
-            let linkElements = document.querySelectorAll(`span.link-entry.quick[data-target_url="${target_url}"]`);
-            if (tunnelUrl != false) {
-                linkElements.forEach(linkElement => {
-                    let path = linkElement.dataset.path
-                    full_url = tunnelUrl + path
-                    let separator = full_url.includes("?") ? "&" : "?";
-                    linkElement.innerHTML = '<a href="' + full_url + "{% if auth_token %}" + separator + "token={{ auth_token }}{% endif %}" + '" class="link" target="_blank">Cloudflare Quick Tunnel</a>';
-                });
-            } else {
-                linkElements.forEach(linkElement => {
-                    linkElement.innerHTML = '';
-                });
-            }
-            
-            // Update the tunnels object
-            quickTunnels[target_url] = { url: tunnelUrl, type: 'quick' };
-            updateTunnelTable();
-        }
-
-        function updateNamedTunnelLink(port, tunnelUrl) {
-            let linkElements = document.querySelectorAll(`span.link-entry.named[data-port="${port}"]`);
-            if (tunnelUrl) {
-                linkElements.forEach(linkElement => {
-                    let path = linkElement.dataset.path
-                    full_url = tunnelUrl + path
-                    let separator = full_url.includes("?") ? "&" : "?";
-                    if (linkElement.id.endsWith("external")) {
-                        
-                        linkElement.innerHTML = '<a href="' + full_url + "{% if auth_token %}" + separator + "token={{ auth_token }}{% endif %}" + '" class="link" target="_blank">' + tunnelUrl + '</a>';
-                    } else {
-                        linkElement.innerHTML = '<a href="' + tunnelUrl + '" class="link" target="_blank">' + tunnelUrl + '</a>';
-                    }
-                });
-            }
-        }
-
-
-        document.addEventListener('DOMContentLoaded', function() {
-            feather.replace();
-
-            // Load applications data
-            const applicationsData = document.getElementById('applications-data');
-            if (applicationsData) {
-                applications = JSON.parse(applicationsData.textContent);
-            }
-
-            document.querySelectorAll('.links-column .link-entry.direct').forEach(element => {
-                let port = element.dataset.port;
-                loadDirectLink(port);
-            });
-
-            document.querySelectorAll('.links-column .link-entry.named').forEach(element => {
-                let port = element.dataset.port;
-                loadExistingNamedTunnel(port);
-            });
-
-            document.querySelectorAll('.links-column .link-entry.quick').forEach(element => {
-                let target_url = element.dataset.target_url;
-                let port = target_url.split(':').pop();
-                loadExistingQuickTunnel(target_url);
-            });
-
-            loadExistingTunnels();
-            fetchLogs();
-        });
-
-        document.body.addEventListener('htmx:beforeRequest', function(event) {
-            if (event.target.className == "button start-button" || event.target.className == "button refresh-button") {
-                let target_url = event.detail.elt.dataset.target_url
-                let loadingIndicators = document.querySelectorAll(`div.loading-indicator[data-target_url="${target_url}"]`);
-                
-                loadingIndicators.forEach(loadingIndicator => {
-                    loadingIndicator.style.display = 'flex'
-                });
-            } else if (event.target.className == "new-tunnel-form") {
-                let loadingIndicator = document.querySelector('div#loading-tunnel-list.loading-indicator');
-
-                loadingIndicator.style.display = 'flex'
-            }
-        });
-    
-
-        document.body.addEventListener('htmx:afterOnLoad', function(event) {
-            // We are somewhat misusing htmx, but it is useful for many things.
-            // Test whether the response is json
-            try {
-                json = JSON.parse(event.detail.xhr.responseText)
-            } catch {
-                json = false
-            }
-
-            // We are not doing much work here, so we will keep things simple for now
-            if (json) {
-                if (event.target.className == "button start-button" || event.target.className == "button refresh-button") {
-                    let target_url = event.detail.elt.dataset.target_url
-                    let quickTunnelElements = document.querySelectorAll(`span.link-entry.quick[data-target_url="${target_url}"]`);
-                    let loadingIndicators = document.querySelectorAll(`div.loading-indicator[data-target_url="${target_url}"]`);
-                    
-                    if (event.detail.xhr.status == 200) {
-                        updateQuickTunnelLink(target_url, json.tunnel_url);
-                        updateButtonStates(target_url, true);
-                        showToast('Quick tunnel started successfully.  It may take a moment for DNS records to update.', 'success');
-                    }
-                    
-                    loadingIndicators.forEach(loadingIndicator => {
-                         loadingIndicator.style.display = 'none'
-                    });
-                }
-
-                if (event.target.className == "new-tunnel-form") {
-                    let target_url = event.target[0].value;
-                    let loadingIndicator = document.querySelector('div#loading-tunnel-list.loading-indicator');
-                    let inputBox = document.querySelector('input#new-tunnel-url');
-                    
-                    if (event.detail.xhr.status == 200) {
-                        updateQuickTunnelLink(target_url, json.tunnel_url);
-                        updateButtonStates(target_url, true);
-                        showToast('Quick tunnel started successfully', 'success');
-                    }
-                    
-                    inputBox.value = "";
-                    loadingIndicator.style.display = 'none'
-                }
-
-                if (event.target.className == "button stop-button") {
-                    let target_url = event.detail.elt.dataset.target_url
-                    let quickTunnelElements = document.querySelectorAll(`span.link-entry.quick[data-target_url="${target_url}"]`);
-                    let loadingIndicators = document.querySelectorAll(`div.loading-indicator[data-target_url="${target_url}"]`);
-                    if (event.detail.xhr.status == 200) {
-                        quickTunnelElements.forEach(quickTunnelElement => {
-                            quickTunnelElement.innerHTML = '';
-                        });
-                        delete quickTunnels[target_url];
-                        updateButtonStates(target_url, false);
-                        showToast('Quick tunnel stopped successfully', 'success');
-                    }
-                    
-                    loadingIndicators.forEach(loadingIndicator => {
-                         loadingIndicator.style.display = 'none'
-                    });
-                }
-            }
-           
-            
-            updateTunnelTable();
-            feather.replace();
-        });
-
-
-        // Utility functions
-
-        function showToast(message, type) {
-            const toastContainer = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.classList.add('toast', `toast-${type}`);
-            toast.textContent = message;
-
-            toastContainer.appendChild(toast);
-
-            setTimeout(() => {
-                toast.classList.add('show');
-            }, 100);
-
-            setTimeout(() => {
-                toast.classList.remove('show');
-                setTimeout(() => {
-                    toastContainer.removeChild(toast);
-                }, 300);
-            }, 3000);
-        }
-
     </script>
+    <script src="/static/assets/portal.js"></script>
 </body>
 </html>
