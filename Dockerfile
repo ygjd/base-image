@@ -54,8 +54,12 @@ RUN \
     apt-get install --no-install-recommends -y \
         software-properties-common \
         gpg-agent && \
-    # For alternative Python versions
-    add-apt-repository ppa:deadsnakes/ppa && \
+    # For alternative Python versions.  Nightly as fallback is helpful when building ARM images with recent Python versions
+    add-apt-repository -y ppa:deadsnakes/ppa && \
+    add-apt-repository -y ppa:deadsnakes/nightly && \
+    mkdir -p /etc/apt/preferences.d && \
+    echo $'Package: *\nPin: release o=LP-PPA-deadsnakes-ppa\nPin-Priority: 900\n\nPackage: *\nPin: release o=LP-PPA-deadsnakes-nightly\nPin-Priority: 50' \
+        > /etc/apt/preferences.d/deadsnakes-priority && \
     apt-get update && \
     apt-get install --no-install-recommends -y \
         # Base system utilities
@@ -261,9 +265,10 @@ RUN \
     set -euo pipefail && \
     # Supplementary Python
     apt-get install --no-install-recommends -y \
-        python${PYTHON_VERSION}-full \
+        python${PYTHON_VERSION} \
         python${PYTHON_VERSION}-dev \
-        python${PYTHON_VERSION}-venv && \
+        python${PYTHON_VERSION}-venv \
+        python${PYTHON_VERSION}-tk && \
     mkdir -p /venv && \
     # Create a virtual env - This gives us portability without sacrificing any functionality
     python${PYTHON_VERSION} -m venv /venv/main && \
