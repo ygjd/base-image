@@ -1,0 +1,87 @@
+#!/bin/bash
+set -e
+
+# Default behavior is to check against latest GitHub release
+TARGET_VERSION=""
+REPO="vast-ai/base-image"
+TEMP_DIR=$(mktemp -d)
+DOWNLOAD_FILE="instance-portal.tar.gz"
+
+# Cleanup function to run on exit
+cleanup() {
+  rm -rf "$TEMP_DIR"
+  echo "Cleaned up temporary files"
+}
+
+# Register the cleanup function to run on exit
+trap cleanup EXIT
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -v|--version)
+      TARGET_VERSION="$2"
+      shift 2
+      ;;
+    *)
+      echo "Unknown option: $1"
+      echo "Usage: $0 [-v|--version VERSION]"
+      exit 2
+      ;;
+  esac
+done
+
+# If no target version specified, fetch from GitHub
+if [ -z "$TARGET_VERSION" ]; then
+  TARGET_VERSION=$(curl -s https://api.github.com/repos/$REPO/releases/latest | jq -r .tag_name)
+  
+  # Check if we got a valid version from GitHub
+  if [ -z "$TARGET_VERSION" ] || [ "$TARGET_VERSION" = "null" ]; then
+    echo "Error: Failed to detect latest version from GitHub."
+    echo "Please specify a version with -v flag or check your internet connection."
+    exit 1
+  fi
+  
+  echo "Updating to latest GitHub release: $TARGET_VERSION"
+else
+  # Add 'v' prefix if not already present
+  if [[ $TARGET_VERSION != v* ]]; then
+    TARGET_VERSION="v$TARGET_VERSION"
+  fi
+  echo "Updating to specified version: $TARGET_VERSION"
+fi
+
+# Download the archive
+DOWNLOAD_URL="https://github.com/$REPO/releases/download/$TARGET_VERSION/$DOWNLOAD_FILE"
+echo "Downloading from: $DOWNLOAD_URL"
+curl -L "$DOWNLOAD_URL" -o "$TEMP_DIR/$DOWNLOAD_FILE"
+
+# Check if download was successful
+if [ ! -f "$TEMP_DIR/$DOWNLOAD_FILE" ]; then
+    echo "Download failed. Please check if version $TARGET_VERSION exists."
+    exit 1
+fi
+
+# Extract the archive to /opt
+echo "Extracting archive to /opt directory..."
+tar -xzf "$TEMP_DIR/$DOWNLOAD_FILE" -C /opt
+
+# Install dependencies
+echo "Installing Python dependencies..."
+/opt/portal-aio/venv/bin/pip install -r /opt/portal-aio/requirements.txt
+
+# Update version environment variable
+echo "Updating PORTAL_VERSION environment variable..."
+if grep -q "PORTAL_VERSION" /etc/environment; then
+    # Update existing entry
+    sed -i "s/PORTAL_VERSION=.*/PORTAL_VERSION=$TARGET_VERSION/" /etc/environment
+else
+    # Add new entry
+    echo "PORTAL_VERSION=$TARGET_VERSION" >> /etc/environment
+fi
+
+echo "Update completed successfully!"
+echo "Portal updated to version $TARGET_VERSION"
+echo "You may need to restart the instance_portal and tunnel_manager services for changes to take effect."
+
+exit 0

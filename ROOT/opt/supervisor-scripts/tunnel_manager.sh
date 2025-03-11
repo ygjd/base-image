@@ -15,4 +15,5 @@ if ! grep -qiE "^[^#].*${search_pattern}" /etc/portal.yaml; then
 fi
 
 cd /opt/portal-aio/tunnel_manager
-/opt/portal-aio/venv/bin/fastapi run --host 127.0.0.1 --port 11112 tunnel_manager.py 2>&1 | tee -a "/var/log/portal/${PROC_NAME}.log"
+# Log outside of /var/log/portal
+/opt/portal-aio/venv/bin/fastapi run --host 127.0.0.1 --port 11112 tunnel_manager.py 2>&1 | tee "/var/log/${PROC_NAME}.log"

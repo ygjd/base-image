@@ -41,6 +41,8 @@ main() {
         echo "Applying first boot optimizations..."
         # Ensure our installed vastai package is updated
         /usr/bin/pip install -U vastai
+        # Attempt to upgrade Instance Portal to latest or specified version
+        update-portal ${PORTAL_VERSION:+-v $PORTAL_VERSION}
         # Copy /opt/workspace-internal to /workspace - Brings to top layer and will support mounting a volume
         # Ensure user 1001 has full access - Avoids permission errors if running with the normal user
         workspace=${WORKSPACE:-/workspace}

@@ -3,6 +3,7 @@ import re
 import requests
 import asyncio
 import json
+import yaml
 from datetime import datetime, timedelta
 from typing import Dict, Optional
 from fastapi import FastAPI, HTTPException
@@ -18,6 +19,29 @@ app = FastAPI()
 CLOUDFLARED_BIN = "/opt/portal-aio/tunnel_manager/cloudflared"
 CF_TUNNEL_TOKEN = os.environ.get('CF_TUNNEL_TOKEN')
 cloudflared_account_process: Optional[asyncio.subprocess.Process] = None
+
+def get_scheme():
+    if os.environ.get("ENABLE_HTTPS", "false").lower() != "true":
+        scheme = "http"
+    else:
+        scheme = "https"
+    return scheme
+
+def load_config():
+    yaml_path = '/etc/portal.yaml'
+    if os.path.exists(yaml_path):
+        with open(yaml_path, 'r') as file:
+            config_applications = yaml.safe_load(file)['applications']
+            return hydrate_applications(config_applications)
+        
+def hydrate_applications(applications):
+    for app_name, app in applications.items():
+        if app["external_port"] == app["internal_port"] and app["internal_port"] == 8080:
+            scheme = "https"
+        else:
+            scheme = get_scheme()
+        applications[app_name]["target_url"] = f'{scheme}://{app["hostname"]}:{app["external_port"]}'
+    return applications
 
 # Function to fetch the public IP address
 def get_public_ip():
@@ -50,9 +74,9 @@ def get_port_mapping(port: int):
     # Fetch the public IP
     public_ip = get_public_ip()
 
-    if not os.environ.get("ENABLE_HTTPS", "true").lower() == "false":
+    if os.environ.get("ENABLE_HTTPS", "false").lower() == "true" or port == 8080:
         scheme = "https://"
-    else: 
+    else:
         scheme = "http://"
 
     # Fetch the environment variable dynamically
@@ -431,15 +455,36 @@ async def startup_event():
                 print(f"Failed to start named tunnel process: {str(e)}")
         
         try:
-            if os.environ.get("ENABLE_HTTPS","").lower() ==  "false":
-                default_tunnel = await get_or_create_quick_tunnel("http://localhost:1111")
-            else:
-                default_tunnel = await get_or_create_quick_tunnel("https://localhost:1111")
-            if default_tunnel:
-                print(f"Default Tunnel started for port 1111 - {default_tunnel.tunnel_url}?token={os.environ.get('OPEN_BUTTON_TOKEN')}")
-        except Exception as e:
-            print(f"Failed to create default tunnel: {str(e)}")
-            # Sometimes Cloudflare Tunnels don't work (No SLA) - This must never bee fatal
+            # Track unique ports and their first app name
+            config = load_config()
+            unique_targets = {}
+            for app_name, app_config in config.items():
+                target = app_config['target_url']
+                if target not in unique_targets:
+                    unique_targets[target] = app_name
+
+            # Create tunnels only for unique ports
+            tunnel_tasks = []
+            for target in unique_targets.keys():
+                try:
+                    task = get_or_create_quick_tunnel(f"{target}")
+                    tunnel_tasks.append(task)
+                except Exception as e:
+                    print(f"Failed to create tunnel task for {target}: {e}")
+
+            if tunnel_tasks:
+                default_tunnels = await asyncio.gather(*tunnel_tasks)
+
+            # Print results
+            for port, result in zip(unique_targets.keys(), default_tunnels):
+                app_name = unique_targets[target]
+                if isinstance(result, Exception):
+                    print(f"Failed to create default tunnel for {port}: {str(result)}")
+                elif result:
+                    print(f"Default Tunnel started for {port} - {result.tunnel_url}?token={os.environ.get('OPEN_BUTTON_TOKEN')}")
+        except:
+            # User can still create tunnels in the UI
+            pass
     except Exception as e:
         print(f"Startup failed: {str(e)}")
         raise
