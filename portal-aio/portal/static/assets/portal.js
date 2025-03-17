@@ -492,7 +492,7 @@ window.InstancePortal = (function() {
                 
                 // Store the tunnel right away so UI can show "pending" status
                 this.quick_tunnels[validUrl] = newTunnel;
-                
+
                 // Start checking tunnel status repeatedly until it becomes active or errors out
                 this._waitForTunnelActive(newTunnel);
                 
@@ -501,6 +501,7 @@ window.InstancePortal = (function() {
                 console.error('Error creating tunnel:', error);
                 return null;
             } finally {
+                this.ui.renderTunnelTable();
                 document.querySelector('.tunnel-loading').classList.remove('show');
             }
         },
@@ -518,11 +519,9 @@ window.InstancePortal = (function() {
                 if (isActive) {
                     // Success - tunnel is active
                     console.log(`Tunnel ${tunnel.tunnelUrl} is now active after ${attempts} attempts`);
-                    this.ui.renderTunnelTable();
                 } else if (tunnel.status === 'error' && attempts >= maxAttempts) {
                     // Failed after max attempts
                     console.error(`Tunnel ${tunnel.tunnelUrl} failed to activate after ${maxAttempts} attempts`);
-                    this.ui.renderTunnelTable();
                     window.app.showToast(`Tunnel couldn't be activated after ${maxAttempts} attempts`, 'error');
                 } else {
                     // Still pending, try again
