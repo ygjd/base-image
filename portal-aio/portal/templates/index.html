@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vast.ai Instance Portal</title>
     <link rel="icon" type="image/png" href="/static/assets/favicon.png" sizes="48x48" />
-    <link rel="stylesheet" href="/static/assets/style.css?{{ instance_id }}">
+    <link rel="stylesheet" href="/static/assets/style.css?{{ instance.id }}">
 </head>
 <body>
     <div id="fullpage-loader" class="fullpage-loader">
@@ -224,6 +224,6 @@
             console.log('Application initialized');
         });
     </script>
-    <script src="/static/assets/portal.js?{{ instance_id }}"></script>
+    <script src="/static/assets/portal.js?{{ instance.id }}"></script>
 </body>
 </html>

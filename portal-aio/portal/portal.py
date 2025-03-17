@@ -694,6 +694,9 @@ async def websocket_logs(websocket: WebSocket):
     try:
         # Wait for the client handler to complete
         await client_task
+    except asyncio.CancelledError:
+        # Expected when client disconnects, no need to log as error
+        logger.debug(f"WebSocket client {client_id} disconnected")
     except Exception as e:
         logger.error(f"Error in main websocket handler for client {client_id}: {e}")
     finally:
