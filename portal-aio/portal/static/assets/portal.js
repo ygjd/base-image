@@ -1139,11 +1139,18 @@ window.InstancePortal = (function() {
             downloadButton: 'downloadLogsBtn'
         },
         
-        // State
+        // Connection state
         isPaused: false,
-        logStream: null,
+        webSocket: null,
         maxLogLines: 300,
-        lastRefreshTime: 0,
+        
+        // Connection management
+        reconnectTimer: null,
+        heartbeatTimer: null,
+        connectionCheckTimer: null,
+        lastHeartbeat: 0,
+        reconnectAttempts: 0,
+        maxReconnectAttempts: 10,
         
         // Toggle pause state
         togglePause: function() {
@@ -1187,7 +1194,7 @@ window.InstancePortal = (function() {
         copyLogs: async function() {
             const copyBtn = document.getElementById(this.elements.copyButton);
             if (!copyBtn) return;
-
+    
             const logConsole = document.getElementById(this.elements.logConsole);
             if (!logConsole) return;
             
@@ -1260,53 +1267,238 @@ window.InstancePortal = (function() {
             }
         },
         
-        // Start streaming logs
-        startStreaming: function() {
-            // Close any existing stream
-            if (this.logStream) {
-                this.logStream.close();
-            }
+        // Append log message to the console
+        appendLog: function(html) {
+            if (this.isPaused) return;
             
             const logConsole = document.getElementById(this.elements.logConsole);
             if (!logConsole) return;
             
-            // Create new EventSource for log streaming
-            this.logStream = new EventSource('/stream-logs');
-            this.lastRefreshTime = Date.now();
+            // Create a temporary container
+            const temp = document.createElement('div');
+            temp.innerHTML = html;
             
-            // Handle incoming log messages
-            this.logStream.onmessage = (event) => {
-                if (!this.isPaused && event.data !== "<span></span>") {
-                    logConsole.innerHTML += event.data;
-                    
-                    // Limit the number of log lines to prevent browser slowdown
-                    while (logConsole.childElementCount > this.maxLogLines) {
-                        logConsole.removeChild(logConsole.firstChild);
-                    }
-                    
-                    this.scrollToBottom();
-                }
-            };
-            
-            // Handle errors
-            this.logStream.onerror = (error) => {
-                console.error('Log stream error:', error);
+            // Add the log entry to the console
+            if (temp.firstChild) {
+                logConsole.appendChild(temp.firstChild);
                 
-                // Attempt to reconnect after a brief delay
-                setTimeout(() => {
-                    if (this.logStream) {
-                        this.logStream.close();
-                        this.startStreaming();
-                    }
-                }, 5000);
-            };
+                // Remove old entries to keep memory usage reasonable
+                while (logConsole.childElementCount > this.maxLogLines) {
+                    logConsole.removeChild(logConsole.firstChild);
+                }
+                
+                // Scroll to bottom
+                this.scrollToBottom();
+            }
         },
         
-        // Stop streaming logs
-        stopStreaming: function() {
-            if (this.logStream) {
-                this.logStream.close();
-                this.logStream = null;
+        // Setup connection monitoring
+        setupConnectionMonitoring: function() {
+            // Clear existing timers
+            this.clearConnectionMonitoring();
+            
+            // Update last heartbeat time
+            this.lastHeartbeat = Date.now();
+            
+            // Send regular pings to the server
+            this.heartbeatTimer = setInterval(() => {
+                if (this.webSocket && this.webSocket.readyState === WebSocket.OPEN) {
+                    try {
+                        this.webSocket.send("ping");
+                        console.debug("Sent ping to server");
+                    } catch (error) {
+                        console.error("Error sending ping:", error);
+                    }
+                }
+            }, 5000); // Every 5 seconds
+            
+            // Check if we're still receiving heartbeats
+            this.connectionCheckTimer = setInterval(() => {
+                if (!this.webSocket || this.webSocket.readyState !== WebSocket.OPEN) {
+                    return; // No need to check if not connected
+                }
+                
+                const elapsed = Date.now() - this.lastHeartbeat;
+                
+                // If no heartbeat in 30 seconds, connection is stale
+                if (elapsed > 30000) {
+                    console.warn(`No heartbeat for ${elapsed/1000}s, reconnecting...`);
+                    
+                    // Add visual indicator
+                    this.appendLog(`<div style="color:orange;text-align:center;font-style:italic;margin:5px 0;border-bottom:1px dotted #ccc;">Connection stale, reconnecting...</div>`);
+                    
+                    // Force reconnection
+                    this.reconnect();
+                }
+            }, 5000); // Check every 5 seconds
+        },
+        
+        // Clear connection monitoring timers
+        clearConnectionMonitoring: function() {
+            if (this.heartbeatTimer) {
+                clearInterval(this.heartbeatTimer);
+                this.heartbeatTimer = null;
+            }
+            
+            if (this.connectionCheckTimer) {
+                clearInterval(this.connectionCheckTimer);
+                this.connectionCheckTimer = null;
+            }
+        },
+        
+        // Connect to the WebSocket
+        connect: function() {
+            // Close any existing connection
+            this.disconnect();
+            
+            try {
+                console.log('Connecting to WebSocket...');
+                
+                // Calculate protocol (wss:// for https, ws:// for http)
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const host = window.location.host;
+                
+                // Add cache busting to prevent stale connections
+                const timestamp = Date.now();
+                const wsUrl = `${protocol}//${host}/ws-logs?_=${timestamp}`;
+                
+                // Create WebSocket connection
+                this.webSocket = new WebSocket(wsUrl);
+                
+                // Use binary type arraybuffer for more stability
+                this.webSocket.binaryType = 'arraybuffer';
+                
+                // Connection opened
+                this.webSocket.addEventListener('open', (event) => {
+                    console.log('WebSocket connected successfully');
+                    this.lastHeartbeat = Date.now();
+                    this.reconnectAttempts = 0;
+                    
+                    // Set up connection monitoring
+                    this.setupConnectionMonitoring();
+                    
+                    // Add a system message
+                    const now = new Date().toLocaleTimeString();
+                    this.appendLog(`<div style="color:green;text-align:center;font-style:italic;margin:5px 0;border-bottom:1px dotted #ccc;">WebSocket connected at ${now}</div>`);
+                });
+                
+                // Listen for messages
+                this.webSocket.addEventListener('message', (event) => {
+                    // Update heartbeat time for any message
+                    this.lastHeartbeat = Date.now();
+                    
+                    const data = event.data;
+                    
+                    // Handle heartbeat message
+                    if (data === 'heartbeat') {
+                        console.debug('Received heartbeat');
+                        return;
+                    }
+                    
+                    // Handle pong message
+                    if (data === 'pong') {
+                        console.debug('Received pong');
+                        return;
+                    }
+                    
+                    // Handle regular log messages
+                    if (!this.isPaused && data) {
+                        this.appendLog(data);
+                    }
+                });
+                
+                // Connection closed
+                this.webSocket.addEventListener('close', (event) => {
+                    console.log(`WebSocket closed: code=${event.code}, reason=${event.reason || 'none'}`);
+                    
+                    // Clean up
+                    this.clearConnectionMonitoring();
+                    
+                    // Add visual indicator
+                    const now = new Date().toLocaleTimeString();
+                    this.appendLog(`<div style="color:orange;text-align:center;font-style:italic;margin:5px 0;border-bottom:1px dotted #ccc;">Connection closed at ${now}</div>`);
+                    
+                    // Schedule reconnection
+                    this.scheduleReconnect();
+                });
+                
+                // Connection error
+                this.webSocket.addEventListener('error', (error) => {
+                    console.error('WebSocket error:', error);
+                    
+                    // Add visual indicator
+                    const now = new Date().toLocaleTimeString();
+                    this.appendLog(`<div style="color:red;text-align:center;font-style:italic;margin:5px 0;border-bottom:1px dotted #ccc;">Connection error at ${now}</div>`);
+                    
+                    // Error is followed by close event which will handle reconnection
+                });
+                
+            } catch (error) {
+                console.error('Failed to create WebSocket:', error);
+                this.appendLog(`<div style="color:red;text-align:center;font-style:italic;margin:5px 0;border-bottom:1px dotted #ccc;">Failed to create WebSocket: ${error.message}</div>`);
+                this.scheduleReconnect();
+            }
+        },
+        
+        // Immediate reconnect
+        reconnect: function() {
+            this.disconnect();
+            console.log('Forcing immediate reconnection');
+            setTimeout(() => this.connect(), 100); // Small delay to ensure clean disconnect
+        },
+        
+        // Schedule reconnect with exponential backoff
+        scheduleReconnect: function() {
+            if (this.reconnectTimer) {
+                clearTimeout(this.reconnectTimer);
+                this.reconnectTimer = null;
+            }
+            
+            // Check max reconnect attempts
+            if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+                console.error(`Maximum reconnect attempts reached (${this.maxReconnectAttempts})`);
+                this.appendLog(`<div style="color:red;text-align:center;font-style:italic;margin:5px 0;border-bottom:1px dotted #ccc;">Maximum reconnect attempts reached. Please refresh the page.</div>`);
+                return;
+            }
+            
+            // Calculate backoff delay with jitter
+            const baseDelay = Math.min(30000, 1000 * Math.pow(1.5, this.reconnectAttempts));
+            const jitter = 0.85 + (Math.random() * 0.3); // 0.85-1.15 randomization
+            const delay = Math.floor(baseDelay * jitter);
+            
+            this.reconnectAttempts++;
+            
+            console.log(`Reconnecting in ${delay/1000} seconds (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+            
+            // Schedule reconnection
+            this.reconnectTimer = setTimeout(() => {
+                this.connect();
+            }, delay);
+        },
+        
+        // Disconnect WebSocket
+        disconnect: function() {
+            // Clear monitoring
+            this.clearConnectionMonitoring();
+            
+            // Clear reconnect timer
+            if (this.reconnectTimer) {
+                clearTimeout(this.reconnectTimer);
+                this.reconnectTimer = null;
+            }
+            
+            // Close the connection
+            if (this.webSocket) {
+                try {
+                    // Only close if it's open or connecting
+                    if (this.webSocket.readyState === WebSocket.OPEN || 
+                        this.webSocket.readyState === WebSocket.CONNECTING) {
+                        this.webSocket.close(1000, "Client disconnected");
+                    }
+                } catch (error) {
+                    console.error('Error closing WebSocket:', error);
+                }
+                this.webSocket = null;
             }
         },
         
@@ -1318,23 +1510,45 @@ window.InstancePortal = (function() {
                 pauseBtn.addEventListener('click', () => this.togglePause());
             }
             
-            // Set up download button
+            // Set up copy button
             const copyBtn = document.getElementById(this.elements.copyButton);
             if (copyBtn) {
                 copyBtn.addEventListener('click', () => this.copyLogs());
             }
-
+    
             // Set up download button
             const downloadBtn = document.getElementById(this.elements.downloadButton);
             if (downloadBtn) {
                 downloadBtn.addEventListener('click', () => this.downloadLogs());
             }
+            
+            // Handle visibility change to reconnect when tab becomes visible
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    console.log('Page visible, checking connection');
+                    
+                    // Check if we need to reconnect
+                    const stale = !this.webSocket || 
+                                  this.webSocket.readyState !== WebSocket.OPEN ||
+                                  (Date.now() - this.lastHeartbeat > 10000);
+                    
+                    if (stale) {
+                        console.log('Connection stale, reconnecting...');
+                        this.reconnect();
+                    }
+                }
+            });
+            
+            // Clean up on page unload
+            window.addEventListener('beforeunload', () => {
+                this.disconnect();
+            });
         },
         
         // Initialize the log manager
         init: function() {
             this.setupEventListeners();
-            this.startStreaming();
+            this.connect();
             return this;
         }
     };

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -13,7 +13,7 @@ import os
 import io
 import zipfile
 from datetime import datetime
-import re
+import logging
 import time
 import ipaddress
 import subprocess
@@ -21,17 +21,14 @@ import GPUtil
 import psutil
 import numpy as np
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, 
+                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger("log_monitor")
+
 tunnel_manager=os.environ.get("TUNNEL_MANAGER", "http://localhost:11112")
 
 app = FastAPI()
-
-tail_directory = "/var/log/portal/"
-client_queues = {}
-log_buffers = {}
-log_monitor = None 
-log_tasks = {}
-MAX_LINES = 600  # Maximum lines to keep in buffer
-# Track all active tasks for easy cancellation
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
@@ -436,24 +433,23 @@ async def set_external_ip(forwarded_host):
 
     return
 
-def parse_ansi(line):
-    ansi_colors = {
-        '30': 'black', '31': 'red', '32': 'green', '33': 'yellow',
-        '34': 'blue', '35': 'magenta', '36': 'cyan', '37': 'white',
-        '90': 'gray', '91': 'lightred', '92': 'lightgreen', '93': 'lightyellow',
-        '94': 'lightblue', '95': 'lightmagenta', '96': 'lightcyan', '97': 'white'
-    }
-    
-    def replace_color(match):
-        code = match.group(1)
-        if code in ansi_colors:
-            return f'<span style="color: {ansi_colors[code]};">'
-        elif code == '0':
-            return '</span>'
-        return ''
-    
-    return re.sub(r'\033\[(\d+)m', replace_color, line)
 
+## Log reader functions
+# Constants
+MAX_LINES = 500  # Maximum lines to keep in buffer
+POLL_INTERVAL = 0.2  # File polling interval in seconds
+LOG_DIRECTORY = "/var/log/portal"  # Default directory to monitor
+
+# State for WebSocket and monitoring
+websocket_clients = set()  # Set of connected WebSocket clients
+client_tasks = {}  # Client ID to asyncio Task
+chronological_log_buffer = deque(maxlen=MAX_LINES)  # Single buffer for all logs in chronological order
+file_specific_buffers = {}  # Filename -> Deque (for debugging/specific file views if needed)
+file_positions = {}  # Filename -> Last position
+file_mtimes = {}    # Filename -> Last modification time
+monitor_task = None  # Main monitoring task
+
+# Helper function to format log lines
 def highlight_log_level(line):
     if 'WARN' in line.upper():
         return f'<span class="warning">{line}</span>'
@@ -461,113 +457,280 @@ def highlight_log_level(line):
         return f'<span class="error">{line}</span>'
     return f'<span>{line}</span>'
 
-async def get_log_files():
-    """Retrieve all log files in the directory."""
-    return {f for f in os.listdir(tail_directory) if f.endswith('.log')}
-
-async def read_file_lines(filepath, queues, buffer):
-    """Read existing lines in a file, then switch to tailing mode to add new lines."""
+# Dedicated task for each client to handle heartbeats and messages
+async def client_handler(websocket: WebSocket, client_id: int):
+    """Handle a single client's WebSocket connection"""
     try:
-        async with aiofiles.open(filepath, mode="r") as f:
-            # Step 1: Read any existing lines in the file initially
-            async for line in f:
-                if line:
-                    message = line.strip()
-                    buffer.append(message)
-                    if len(buffer) > MAX_LINES:
-                        buffer.popleft()
-
-                # Broadcast the line to all clients in parallel
-                await asyncio.gather(*(queue.put(message) for queue in queues.values()))
-            
-            # Step 2: Switch to "tailing" mode
-            previous_size = os.path.getsize(filepath)
-            while True:
-                current_size = os.path.getsize(filepath)
+        # Send connection confirmation
+        await websocket.send_text('<div class="log-system-message" style="color:green;text-align:center;font-style:italic;margin:5px 0;border-bottom:1px dotted #ccc;">Connected to log stream</div>')
+        
+        # Send historical logs from the single chronological buffer
+        for line in chronological_log_buffer:
+            html_content = highlight_log_level(line)
+            await websocket.send_text(html_content)
+        
+        # Heartbeat loop
+        while True:
+            # Process any messages from client (including pings)
+            try:
+                # Very short timeout to avoid blocking the task
+                message = await asyncio.wait_for(websocket.receive_text(), timeout=0.1)
+                logger.debug(f"Received message from client {client_id}: {message[:50]}...")
                 
-                # Check for file rotation or truncation
-                if current_size < previous_size:
-                    await f.seek(0)
-                    previous_size = current_size
-
-                line = await f.readline()
-                if line:
-                    message = line.strip()
-                    buffer.append(message)
-                    if len(buffer) > MAX_LINES:
-                        buffer.popleft()
-                    
-                    await asyncio.gather(*(queue.put(message) for queue in queues.values()))
-                else:
-                    await asyncio.sleep(1)
-
-    except (FileNotFoundError, PermissionError) as e:
-        print(f"Error opening file: {e}")
-    except (OSError, IOError) as e:
-        print(f"File read error: {e}")
-
-
-async def monitor_log_files():
-    """Monitors all log files and broadcasts new lines to all client queues."""
-    try:
-        while True:
-            log_files = await get_log_files()
+                # If it's a ping, send a pong
+                if message == "ping":
+                    await websocket.send_text("pong")
+            except asyncio.TimeoutError:
+                # No message received, that's expected
+                pass
             
-            # Start a reader task for each new log file
-            for log_file in log_files:
-                file_path = os.path.join(tail_directory, log_file)
-                if log_file not in log_tasks:
-                    log_buffers[log_file] = deque(maxlen=MAX_LINES)
-                    task = asyncio.create_task(read_file_lines(file_path, client_queues, log_buffers[log_file]))
-                    log_tasks[log_file] = task
-
-            # Clean up tasks for deleted log files
-            for log_file in list(log_tasks):
-                if log_file not in log_files:
-                    log_tasks[log_file].cancel()
-                    del log_tasks[log_file]
-                    if log_buffers[log_file]:
-                        del log_buffers[log_file]
-
-            await asyncio.sleep(5)  # Check for new/removed files every 5 seconds
+            # Send heartbeat every 10 seconds
+            await asyncio.sleep(10)
+            try:
+                await websocket.send_text("heartbeat")
+                logger.debug(f"Sent heartbeat to client {client_id}")
+            except Exception as e:
+                logger.error(f"Failed to send heartbeat to client {client_id}: {e}")
+                # Connection is probably broken, exit the loop
+                break
+    
+    except WebSocketDisconnect:
+        logger.info(f"WebSocket client {client_id} disconnected normally")
     except asyncio.CancelledError:
-        # Graceful shutdown cleanup
-        print("Monitor log files task cancelled.")
-
-async def stream_logs(request: Request):
-    """Stream logs to the client from a dedicated queue, including recent log history."""
-    queue = asyncio.Queue()
-    client_id = id(queue)
-    client_queues[client_id] = queue
-
-    # First, send the last 500 lines from each log buffer
-    for log_file, buffer in log_buffers.items():
-        for line in buffer:
-            await queue.put(line)
-
-    try:
-        while True:
-            # Exit if the client disconnects
-            if await request.is_disconnected():
-                return
-            
-            # Get the next line in the queue
-            line = await queue.get()
-            queue.task_done()  # Mark task as done
-            
-            if line is None:
-                return  # Graceful shutdown
-
-            # Process and stream the log line to the client
-            html_content = highlight_log_level(parse_ansi(line))
-            yield f"data: {html_content}\n\n"
+        logger.info(f"Client handler for {client_id} was cancelled")
+    except Exception as e:
+        logger.error(f"Error in client handler for {client_id}: {e}", exc_info=True)
     finally:
-        # Clean up the client's queue upon disconnect
-        client_queues.pop(client_id, None)
+        # Clean up client state
+        remove_client(websocket, client_id)
 
-@app.get("/stream-logs")
-async def get_stream_logs(request: Request):
-    return StreamingResponse(stream_logs(request), media_type="text/event-stream")
+# Remove a client
+def remove_client(websocket, client_id):
+    """Safely remove a client and cancel its task"""
+    if websocket in websocket_clients:
+        websocket_clients.remove(websocket)
+    
+    if client_id in client_tasks:
+        client_tasks[client_id].cancel()
+        del client_tasks[client_id]
+    
+    logger.info(f"Client {client_id} removed, remaining clients: {len(websocket_clients)}")
+
+# Get all log files in the directory
+async def get_log_files(directory):
+    try:
+        # Get all log files in the directory
+        log_files = [f for f in os.listdir(directory) if f.endswith('.log')]
+        
+        # Get the full path for each file
+        full_paths = [os.path.join(directory, f) for f in log_files]
+        
+        # Sort files by modification time (oldest first, newest last)
+        sorted_paths = sorted(full_paths, key=lambda x: os.path.getmtime(x))
+        
+        # Extract just the filenames from the sorted paths
+        sorted_files = [os.path.basename(path) for path in sorted_paths]
+        
+        return sorted_files
+    except Exception as e:
+        logger.error(f"Error listing directory {directory}: {e}")
+        return []
+
+# Send message to all connected clients
+async def broadcast_message(message):
+    """Send a formatted log message to all connected clients in parallel"""
+    if not websocket_clients:
+        return
+    
+    # Format the log message
+    html_content = highlight_log_level(message)
+    
+    # Create tasks to send to all clients in parallel
+    send_tasks = []
+    for client in websocket_clients:
+        task = asyncio.create_task(send_to_client(client, html_content))
+        send_tasks.append(task)
+    
+    # Wait for all tasks to complete
+    results = await asyncio.gather(*send_tasks, return_exceptions=True)
+    
+    # Remove any disconnected clients
+    disconnected_clients = set()
+    for client, result in zip(websocket_clients, results):
+        if isinstance(result, Exception):
+            logger.error(f"Error sending to client {id(client)}: {result}")
+            disconnected_clients.add(client)
+    
+    for client in disconnected_clients:
+        websocket_clients.remove(client)
+
+async def send_to_client(client, content):
+    """Helper function to send content to a single client"""
+    await client.send_text(content)
+    return True
+
+# Tail a single log file
+async def tail_log_file(filepath):
+    """Monitor a log file for changes and broadcast new content"""
+    filename = os.path.basename(filepath)
+    
+    try:
+        # Get file stats
+        if not os.path.exists(filepath):
+            return
+
+        # Get current file info
+        current_size = os.path.getsize(filepath)
+        current_mtime = os.path.getmtime(filepath)
+        last_position = file_positions.get(filename, None)
+        last_mtime = file_mtimes.get(filename, 0)
+        
+        # First time seeing this file
+        if last_position is None:
+            logger.info(f"New file: {filename}, size={current_size}")
+            file_specific_buffers[filename] = deque(maxlen=MAX_LINES)  # For file-specific tracking
+            
+            # For new files, read the last MAX_LINES lines
+            async with aiofiles.open(filepath, 'r') as file:
+                lines = await file.readlines()
+                if len(lines) > MAX_LINES:
+                    lines = lines[-MAX_LINES:]
+                
+                for line in lines:
+                    line = line.strip()
+                    if line:
+                        # Add to file-specific buffer
+                        file_specific_buffers[filename].append(line)
+                        # Add to chronological buffer
+                        chronological_log_buffer.append(line)
+                        # Broadcast to connected clients
+                        await broadcast_message(line)
+                
+                # Set the position to end of file
+                file_positions[filename] = current_size
+                file_mtimes[filename] = current_mtime
+            
+        # File has been modified since last check
+        elif current_mtime > last_mtime or current_size != last_position:
+            logger.debug(f"File {filename} changed: size={current_size}, last_pos={last_position}")
+            
+            # If file was truncated or rotated (smaller than before)
+            if current_size < last_position:
+                logger.info(f"File {filename} was truncated")
+                last_position = 0
+            
+            # Open and seek to last position
+            async with aiofiles.open(filepath, 'r') as file:
+                if last_position > 0:
+                    await file.seek(last_position)
+                
+                # Read all new lines
+                new_lines = []
+                async for line in file:
+                    line = line.strip()
+                    if line:
+                        new_lines.append(line)
+                        # Add to both buffers
+                        file_specific_buffers[filename].append(line)
+                        chronological_log_buffer.append(line)
+                        await broadcast_message(line)
+                
+                # Update position and mtime
+                file_positions[filename] = await file.tell()
+                file_mtimes[filename] = current_mtime
+                
+                if new_lines:
+                    logger.info(f"Read {len(new_lines)} new lines from {filename}")
+
+    except Exception as e:
+        logger.error(f"Error tailing {filepath}: {e}")
+
+# Main monitoring loop
+async def monitor_log_directory(directory):
+    """Main task to monitor log directory and tail files"""
+    logger.info(f"Starting log monitoring in {directory}")
+    
+    while True:
+        try:
+            # Get current log files
+            log_files = await get_log_files(directory)
+            
+            # Monitor each file
+            for log_file in log_files:
+                filepath = os.path.join(directory, log_file)
+                await tail_log_file(filepath)
+                
+            # Clean up deleted files
+            for filename in list(file_positions.keys()):
+                if filename not in log_files:
+                    logger.info(f"File {filename} was removed, cleaning up")
+                    file_positions.pop(filename, None)
+                    file_mtimes.pop(filename, None)
+            
+            # Small delay before next poll
+            await asyncio.sleep(POLL_INTERVAL)
+            
+        except asyncio.CancelledError:
+            logger.info("Monitor task cancelled")
+            break
+        except Exception as e:
+            logger.error(f"Error in monitor_log_directory: {e}")
+            await asyncio.sleep(1)
+
+# WebSocket connection handler
+async def websocket_logs(websocket: WebSocket):
+    """Handle a new WebSocket connection"""
+    await websocket.accept()
+    
+    # Generate client ID and add to clients list
+    client_id = id(websocket)
+    websocket_clients.add(websocket)
+    logger.info(f"WebSocket client {client_id} connected, total clients: {len(websocket_clients)}")
+    
+    # Create a dedicated task for this client
+    client_task = asyncio.create_task(client_handler(websocket, client_id))
+    client_tasks[client_id] = client_task
+    
+    try:
+        # Wait for the client handler to complete
+        await client_task
+    except Exception as e:
+        logger.error(f"Error in main websocket handler for client {client_id}: {e}")
+    finally:
+        # Ensure client is removed
+        remove_client(websocket, client_id)
+
+# Cleanup function to cancel all tasks
+async def cleanup_tasks():
+    """Clean up all tasks on shutdown"""
+    global monitor_task
+    
+    # Cancel monitor task
+    if monitor_task:
+        logger.info("Cancelling monitor task")
+        monitor_task.cancel()
+        try:
+            await monitor_task
+        except asyncio.CancelledError:
+            pass
+    
+    # Cancel all client tasks
+    for client_id, task in list(client_tasks.items()):
+        logger.info(f"Cancelling client task {client_id}")
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+    
+    # Clear collections
+    websocket_clients.clear()
+    client_tasks.clear()
+    logger.info("All tasks cleaned up")
+
+@app.websocket("/ws-logs")
+async def logs_websocket(websocket: WebSocket):
+    await websocket_logs(websocket)
 
 @app.get("/download-logs")
 async def download_logs(filename: str = None):
@@ -728,24 +891,13 @@ async def get_system_metrics():
 
     return JSONResponse(content=metrics)
 
-# Register shutdown event handler
-@app.on_event("shutdown")
-async def on_shutdown():
-    for client_id, queue in client_queues.items():
-        await queue.put(None)  # Send `None` to each queue to signal disconnection
-
-    for task in log_tasks.values():
-        task.cancel()
-
-    log_monitor.cancel()
-
-    await asyncio.sleep(1)
-
 @app.on_event("startup")
 async def startup_event():
-    global log_monitor
-    log_monitor = asyncio.create_task(monitor_log_files())
+    app.state.monitor_task = asyncio.create_task(
+        monitor_log_directory("/var/log/portal")
+    )
 
-
-
-
+@app.on_event("shutdown") 
+async def shutdown_event():
+    if hasattr(app.state, 'monitor_task'):
+        app.state.monitor_task.cancel()
