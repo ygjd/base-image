@@ -297,23 +297,43 @@ window.InstancePortal = (function() {
         
         // Fetch direct URLs for all applications
         fetchDirectUrls: async function() {
+            const MAX_RETRIES = 5;
+            const RETRY_DELAY = 2000; // 2 seconds
+            
             for (const [appName, app] of Object.entries(this._data)) {
-                try {
-                    const response = await fetch(`/get-direct-url/${app.external_port}`);
-                    
-                    if (response.ok) {
-                        const data = await response.json();
+                let success = false;
+                
+                for (let attempt = 1; attempt <= MAX_RETRIES && !success; attempt++) {
+                    try {
+                        const response = await fetch(`/get-direct-url/${app.external_port}`);
                         
-                        // Store the direct URL using the setter
-                        app.direct_url = data.result;
-                    } else {
-                        app.direct_url = null;
-                        app.direct_url_error = 'Failed to retrieve direct URL';
+                        if (response.ok) {
+                            const data = await response.json();
+                            
+                            // Store the direct URL using the setter
+                            app.direct_url = data.result;
+                            success = true;
+                        } else {
+                            if (attempt < MAX_RETRIES) {
+                                console.log(`Tunnels server not available for ${appName} direct URL (attempt ${attempt}/${MAX_RETRIES}). Retrying in ${RETRY_DELAY/1000} seconds...`);
+                                await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+                            } else {
+                                app.direct_url = null;
+                                app.direct_url_error = 'Failed to retrieve direct URL';
+                                console.log(`Tunnels server not available for ${appName} direct URL. Giving up after ${MAX_RETRIES} attempts.`);
+                            }
+                        }
+                    } catch (error) {
+                        if (attempt < MAX_RETRIES) {
+                            console.log(`Tunnels server not available for ${appName} direct URL (attempt ${attempt}/${MAX_RETRIES}). Retrying in ${RETRY_DELAY/1000} seconds...`);
+                            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+                        } else {
+                            console.error(`Error fetching direct URL for ${appName}:`, error);
+                            app.direct_url = null;
+                            app.direct_url_error = 'Connection error';
+                            console.log(`Tunnels server not available for ${appName} direct URL. Giving up after ${MAX_RETRIES} attempts.`);
+                        }
                     }
-                } catch (error) {
-                    console.error(`Error fetching direct URL for ${appName}:`, error);
-                    app.direct_url = null;
-                    app.direct_url_error = 'Connection error';
                 }
             }
         },
@@ -413,48 +433,75 @@ window.InstancePortal = (function() {
 
         // API Methods
         fetchNamedTunnels: async function() {
-            try {
-                const response = await fetch('/get-named-tunnels');
-                
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch named tunnels: ${response.statusText}`);
+            const MAX_RETRIES = 5;
+            const RETRY_DELAY = 2000; // 2 seconds
+            
+            for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+                try {
+                    const response = await fetch('/get-named-tunnels');
+                    
+                    // Don't retry if it's a 404 - that means the resource doesn't exist
+                    if (response.status === 404) {
+                        console.log('Named tunnels endpoint not found (404). Not retrying.');
+                        return [];
+                    }
+                    
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch named tunnels: ${response.statusText}`);
+                    }
+                    
+                    const tunnelsData = await response.json();
+                    
+                    // Process each tunnel and associate with applications
+                    tunnelsData.forEach(tunnelData => {
+                        const tunnel = this._createTunnelObject('named', tunnelData.targetUrl, tunnelData.tunnelUrl);
+                        this.named_tunnels[tunnelData.targetUrl] = tunnel;
+                    });
+                    
+                    return Object.values(this.named_tunnels);
+                } catch (error) {
+                    if (attempt < MAX_RETRIES) {
+                        console.log(`Tunnels server not available for named tunnels (attempt ${attempt}/${MAX_RETRIES}). Retrying in ${RETRY_DELAY/1000} seconds...`);
+                        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+                    } else {
+                        console.log(`Tunnels server not available for named tunnels. Giving up after ${MAX_RETRIES} attempts.`);
+                        return [];
+                    }
                 }
-                
-                const tunnelsData = await response.json();
-                
-                // Process each tunnel and associate with applications
-                tunnelsData.forEach(tunnelData => {
-                    const tunnel = this._createTunnelObject('named', tunnelData.targetUrl, tunnelData.tunnelUrl);
-                    this.named_tunnels[tunnelData.targetUrl] = tunnel;
-                });
-                
-                return Object.values(this.named_tunnels);
-            } catch (error) {
-                console.log('Named tunnels unavailable');
-                return [];
             }
         },
-
+        
         fetchQuickTunnels: async function() {
-            try {
-                const response = await fetch('/get-all-quick-tunnels');
-                
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch quick tunnels: ${response.statusText}`);
+            const MAX_RETRIES = 5;
+            const RETRY_DELAY = 2000; // 2 seconds
+            
+            for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+                try {
+                    const response = await fetch('/get-all-quick-tunnels');
+                    
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch quick tunnels: ${response.statusText}`);
+                    }
+                    
+                    const tunnelsData = await response.json();
+                    
+                    // Process each tunnel and associate with applications
+                    tunnelsData.forEach(tunnelData => {
+                        const tunnel = this._createTunnelObject('quick', tunnelData.targetUrl, tunnelData.tunnelUrl);
+                        this.quick_tunnels[tunnelData.targetUrl] = tunnel;
+                    });
+                    
+                    return Object.values(this.quick_tunnels);
+                } catch (error) {
+                    if (attempt < MAX_RETRIES) {
+                        console.log(`Tunnels server not available for quick tunnels (attempt ${attempt}/${MAX_RETRIES}). Retrying in ${RETRY_DELAY/1000} seconds...`);
+                        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+                    } else {
+                        console.log(`Tunnels server not available for quick tunnels. Giving up after ${MAX_RETRIES} attempts.`);
+                        console.error('Error details:', error);
+                        return [];
+                    }
                 }
-                
-                const tunnelsData = await response.json();
-                
-                // Process each tunnel and associate with applications
-                tunnelsData.forEach(tunnelData => {
-                    const tunnel = this._createTunnelObject('quick', tunnelData.targetUrl, tunnelData.tunnelUrl);
-                    this.quick_tunnels[tunnelData.targetUrl] = tunnel;
-                });
-                
-                return Object.values(this.quick_tunnels);
-            } catch (error) {
-                console.error('Error fetching quick tunnels:', error);
-                return [];
             }
         },
 
@@ -1792,9 +1839,7 @@ window.InstancePortal = (function() {
         }
     };
     
-    // Only expose what you want to be public
     return {
-        // The main entry point to your application
         init: function() {
             return appUI.init();
         },
