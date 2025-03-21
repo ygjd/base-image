@@ -57,6 +57,11 @@ window.InstancePortal = (function() {
             
             // Create a card for each application
             for (const [appName, app] of Object.entries(this._data)) {
+                // Adjust display and behavior for Instance Portal
+                const isInstancePortal = appName === "Instance Portal";
+                const isDisabled = isInstancePortal ? 'disabled' : '';
+                const buttonText = isInstancePortal ? 'Currently Active' : 'Launch Application';
+        
                 const cardHtml = `
                     <div class="card" data-app-id="${appName}">
                         <div class="card-content">
@@ -65,8 +70,8 @@ window.InstancePortal = (function() {
                             </div>
                         
                             <div class="launch-application" data-app-id="${appName}">
-                                <button class="launch-btn" data-action="launch">
-                                    Launch Application
+                                <button class="launch-btn" data-action="launch" ${isDisabled}>
+                                    ${buttonText}
                                 </button>
                             </div>
                             
@@ -243,6 +248,8 @@ window.InstancePortal = (function() {
                     let url = null;
                     if (app.named_tunnel && app.named_tunnel.status == "active") {
                         url = app.named_tunnel_url;
+                    } else if (app.direct_url_full && instance.direct_https === "true") {
+                        url = app.direct_url_full;
                     } else if (app.quick_tunnel && app.quick_tunnel.status == "active") {
                         url = app.quick_tunnel_url;
                     } else if (app.direct_url_full) {
@@ -1601,6 +1608,8 @@ window.InstancePortal = (function() {
     
     // Main application UI controller
     const appUI = {
+        _loaderTextTimeoutId: null,
+        _skipWaiting: false,
         // Toast notification system
         toast: {
             container: null,
@@ -1720,6 +1729,47 @@ window.InstancePortal = (function() {
             this.toast.show(message, type);
         },
 
+        updateLoaderText: function(newText, duration = 500) {
+            const loaderText = document.getElementById('loader-text');
+            if (!loaderText) return;
+            
+            // Cancel any pending timeout
+            if (this._loaderTextTimeoutId !== null) {
+                clearTimeout(this._loaderTextTimeoutId);
+                this._loaderTextTimeoutId = null;
+            }
+            
+            // Start fade out
+            loaderText.classList.add('changing');
+            
+            // Set new timeout and store its ID
+            this._loaderTextTimeoutId = setTimeout(() => {
+                loaderText.textContent = newText;
+                loaderText.classList.remove('changing');
+                this._loaderTextTimeoutId = null;
+            }, duration);
+        },
+
+        showSkipWaitingLink: function(delay = 3000) {
+            const skipWaiting = document.getElementById('skip-waiting');
+            if (!skipWaiting) return;
+            
+            skipWaiting.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.skipWaiting(); // You'll need to implement this method
+            });
+    
+            // Show the skip waiting link after the specified delay
+            setTimeout(() => {
+                skipWaiting.classList.add('visible');
+            }, delay);
+        },
+
+        skipWaiting: function() {
+            this._skipWaiting = true;
+            this.hideLoader();
+        },
+
         hideLoader: function() {
             // Hide the main page loader
             const loader = document.getElementById('fullpage-loader');
@@ -1787,13 +1837,16 @@ window.InstancePortal = (function() {
                 // We're already secure or user wants IP so no need to wait for tunnel
                 return false;
             } else {
+                this.showSkipWaitingLink(1000);
                 try {
                     // Instance Portal
                     app = this.applications.findByPort(1111)[0];
                     if (app.named_tunnel && app.named_tunnel_url) {
                         window.location.href = app.named_tunnel_url;
                     } else if (app.quick_tunnel_url && await this.tunnels.canResolve(app.quick_tunnel.tunnelUrl, 15000)) {
-                        window.location.href = app.quick_tunnel_url;
+                        if (this._skipWaiting !== true) {
+                            window.location.href = app.quick_tunnel_url;
+                        }
                     }
                     await new Promise(resolve => setTimeout(resolve, 5000));
                 }
@@ -1808,10 +1861,12 @@ window.InstancePortal = (function() {
         init: async function() {
             const parent = this;
             // Load apps & direct links with returned reference
+            parent.updateLoaderText("Gathering applications...");
             this.applications = applications;
             await applications.init();
     
             // Load tunnels with returned reference
+            parent.updateLoaderText("Loading secure tunnels...");
             this.tunnels = tunnels;
             await tunnels.init();
     

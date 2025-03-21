@@ -128,7 +128,8 @@ class QuickTunnel:
                         
                     line_str = line.decode().strip()
                     print(f"[{self.target.geturl()}] {line_str}")
-                    match = re.search(r'(https://[^\s]+.trycloudflare.com)', line_str)
+                    # Avoid error response URLS on the trycloudflare domain
+                    match = re.search(r'(https://\w+(-\w+){1,}\.trycloudflare\.com)', line_str)
                     if match:
                         self.tunnel_url = match.group(1)
                         return self.tunnel_url

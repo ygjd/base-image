@@ -71,7 +71,8 @@ def strip_port(host):
 def get_instance_properties():
     return {
         "id": os.environ.get("CONTAINER_ID",""),
-        "gpu": get_gpu_info()
+        "gpu": get_gpu_info(),
+        "direct_https": "true" if os.environ.get("ENABLE_HTTPS", "false").lower() == "true" else "false"
     }
 
 def get_gpu_info():
