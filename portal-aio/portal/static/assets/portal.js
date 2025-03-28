@@ -651,7 +651,7 @@ window.InstancePortal = (function() {
             }
         },
 
-        canResolve: async function(tunnel_url, max_duration = 5000, polling_interval = 500) {
+        canResolve: async function(tunnel_url, max_duration = 5000, polling_interval = 1000) {
             const tunnel = this.findByTunnelUrl(tunnel_url);
             if (!tunnel) return false; // Added return value for this case
             
@@ -676,18 +676,43 @@ window.InstancePortal = (function() {
                     if (resolved || Date.now() - start_time >= max_duration) return;
                     
                     try {
-                        // Use fetch with no-cors for Firefox compatibility
-                        await fetch(`${tunnel_url}/health.ico?t=${Date.now()}`, {
-                            mode: 'no-cors',
-                            cache: 'no-store',
-                            credentials: 'omit'
-                        });
-                        
-                        // If we get here, we got a response
-                        if (!resolved) {
-                            clearTimeout(timeout);
-                            resolved = true;
-                            resolve(true);
+                        // For non-proxied apps, we just need to know if we got any response (best effort)
+                        // For proxied apps, we need a 200 response
+                        if (isProxied) {
+                            // When proxied, we need to check for a 200 response
+                            // Using regular fetch (not no-cors) to read the status
+                            const response = await fetch(`${tunnel_url}/health.ico?t=${Date.now()}`, {
+                                cache: 'no-store',
+                                credentials: 'omit'
+                            });
+                            
+                            if (response.status === 200 && !resolved) {
+                                clearTimeout(timeout);
+                                resolved = true;
+                                resolve(true);
+                            } else if (!resolved && Date.now() - start_time < max_duration) {
+                                // If not a 200 response and we have time, try again
+                                setTimeout(attemptLoad, polling_interval);
+                            } else if (!resolved) {
+                                resolved = true;
+                                resolve(false);
+                            }
+                        } else {
+                            // For non-proxied apps where we cannot control CORS headers, we just need any response
+                            // This may give us a false positive for resolvable but it is the best we can do
+                            // Use fetch with no-cors
+                            await fetch(`${tunnel_url}/health.ico?t=${Date.now()}`, {
+                                mode: 'no-cors',
+                                cache: 'no-store',
+                                credentials: 'omit'
+                            });
+                            
+                            // If we get here, we got a response (for non-proxied apps this is enough)
+                            if (!resolved) {
+                                clearTimeout(timeout);
+                                resolved = true;
+                                resolve(true);
+                            }
                         }
                     } catch (fetchError) {
                         // If we still have time, try again
