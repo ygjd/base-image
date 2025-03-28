@@ -26,6 +26,7 @@ RUN \
     git clone --recursive https://github.com/bmaltais/kohya_ss.git && \
     cd /opt/workspace-internal/kohya_ss && \
     git checkout "${KOHYA_REF}" && \
+    git submodule update --init --recursive && \
     # Allow installation with alternative torch versions and disable bundled tensorboard
     grep -v "^--extra-index-url\|^torch==\|^torchvision==\|^xformers==\|^tensorboard\|^tensorflow" requirements_linux.txt > requirements_linux_modified.txt && \
     pip install --no-cache-dir \
@@ -33,7 +34,7 @@ RUN \
         -r requirements_linux_modified.txt && \
     rm -f requirements_linux_modified.txt && \
     # Fix the Tensorboard URL in the GUI to avoid hardcoded localhost links
-    sed -i 's|link=f"http://localhost:{self.tensorboard_port}"|link=f"//{os.environ.get('\''PUBLIC_IPADDR'\'')}:{os.environ.get('\''VAST_TCP_PORT_6006'\'')}"|' \
+    sed -i 's|link=f"http://localhost:{self.tensorboard_port}"|link=f"http://{os.environ.get('\''PUBLIC_IPADDR'\'')}:{os.environ.get('\''VAST_TCP_PORT_6006'\'')}"|' \
         /opt/workspace-internal/kohya_ss/kohya_gui/class_tensorboard.py && \
     # Set up a default accelerate profile
     mkdir -p "/root/.cache/huggingface/accelerate" && \

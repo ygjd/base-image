@@ -36,7 +36,6 @@ RUN \
     # Ensure Ollama data persists on the workspace - WebUI directory is created on startup
     mkdir -p /opt/workspace-internal/ollama && \
     # Get Llama.cpp
-    latest=$(curl -s https://api.github.com/repos/ggerganov/llama.cpp/releases/latest | grep -Po '"tag_name": "\K.*?(?=")') && \
     mkdir -p /opt/llama.cpp/bin && \
     cd /tmp && \
     apt-get install libcurl4-openssl-dev && \
