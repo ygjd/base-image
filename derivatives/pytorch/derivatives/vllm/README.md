@@ -40,7 +40,7 @@ Find out how to interact with the API in the [Programmatic Access](#programmatic
 You can interact with the running API server from the instance CLI. To do so, enter:
 
 ```bash
-vllm chat http://localhost:18000/v1
+vllm chat --url http://localhost:18000/v1
 ```
 
 
