@@ -16,7 +16,7 @@ if [[ "$CUDA_VERSION" != "12.8"* ]]; then
     if dpkg --compare-versions "$NCCL_VERSION" lt "2.26.2"; then
         apt-get -y update
         apt-get install -y --allow-change-held-packages libnccl2=2.26.2-1+cuda12.8 libnccl-dev=2.26.2-1+cuda12.8
-        cp usr/lib/x86_64-linux-gnu/libnccl.so.2 "/venv/main/lib/python${PYTHON_VERSION}/site-packages/nvidia/nccl/lib/"
+        cp /usr/lib/x86_64-linux-gnu/libnccl.so.2 "/venv/main/lib/python${PYTHON_VERSION}/site-packages/nvidia/nccl/lib/"
     fi
 fi
 
