@@ -47,15 +47,17 @@ This is the most performant interface.  It has audio support and is very respons
 
 Only a single user can connect to this interface at once.
 
-The `x264enc` encider is selected as the default for best compatibility, but you may change this to `nvh264enc` for best performance.
+The `x264enc` encoder is selected as the default for best compatibility, but you may change this to `nvh264enc` for best performance.
 
 A TURN server is included in the docker image, but if you would like to use your own TURN server, you can do so by specifying the `TURN_HOST`, `TURN_PORT`, `TURN_PROTOCOL`, `TURN_USERNAME` & `TURN_PASSWORD` environment variables. 
 
 ### Guacamole VNC
 
-This is a simple VNC interface available in your web browser.
+This is a simple VNC interface available in your web browser.  
 
-### VNC Direct
+VNC is transported by the Guacamole protocol and may be slightly faster than direct VNC.
+
+### VNC
 
 you can use your preferred VNC client to connect on the port mapped to `INSTANCE_IP:5900`
 
@@ -257,6 +259,89 @@ supervisorctl tail -f syncthing  # Follow mode
 
 Need more details? Check out the [Supervisor documentation](https://supervisord.readthedocs.io/en/latest).
 
+### Instance Startup Process
+
+The Docker image uses `/opt/instance-tools/bin/entrypoint.sh` as its startup script. This script handles both initial setup and routine startup tasks.
+
+**First Time Setup:**
+- Updates the `vastai` Python package to the latest version
+- Sets up the `${WORKSPACE}` directory with proper permissions for both admin and user access
+- Configures login settings to:
+ - Automatically activate the default Python environment
+ - Start in the `${WORKSPACE}` directory
+- Creates a backup of the default Python environments
+- Runs any custom setup script defined in the `PROVISIONING_SCRIPT` environment variable
+
+**Every Time the Instance Starts:**
+- Sets up SSH access keys
+- Creates new security certificates if needed
+- Launches `supervisord` to manage running applications
+
+### Python Package Management
+
+**Default Environment:**
+- Python packages install to the `/venv/main/` virtual environment
+- This environment activates automatically when you:
+ - Connect via SSH
+ - Open a terminal in Jupyter
+ - Run Jupyter notebooks
+
+**Automatic Backups:**
+- Every 30 minutes, the system creates a backup of your Python packages
+- Backups are stored in `/workspace/.venv-backup/{INSTANCE_ID}/`
+- These backups let you:
+ - Undo recent package changes
+ - Recreate your exact environment on a new instance
+
+**Backup Settings:**
+- By default, keeps 48 backups (24 hours worth)
+- Adjust using the `VENV_BACKUP_COUNT` environment variable
+- Set to `0` to turn off backups
+
+
+## Environment Variables
+
+Some more useful environment variables are provided for instance customization.
+
+| Variable | Type | Default | Description |
+| --- | --- | --- | --- |
+| `WORKSPACE` | string | `/workspace` | Set the workspace directory |
+| `ENABLE_AUTH` | bool | `true` | Enable or disable token-based and basic authentication |
+| `AUTH_EXCLUDE` | string | | Disable authentication for specific ports. eg. `6006,8384` |
+| `ENABLE_HTTPS` | bool | `false` | Enable or disable TLS |
+| `PORTAL_CONFIG` | string | See note below | Configures the Instance Portal and application startup |
+| `VENV_BACKUP_COUNT` | int | `48` | Number of venv backups to retain |
+| `PROVISIONING_SCRIPT` | string | | URL pointing to a shell script (GitHub Repo, Gist) |
+| `SELKIES_ENCODER` | string | `x264enc` | Video encoder |
+| `VNC_PASSWORD` | string | `$OPEN_BUTTON_TOKEN` | Custom password for VNC connections |
+| `TURN_HOST` | string | `$PUBLIC_IPADDR` | TURN host |
+| `TURN_PORT` | string | `$VAST_TCP_PORT_73478` | TURN port |
+| `TURN_PROTOCOL` | string | `tcp` | TURN protocol |
+| `TURN_USERNAME` | string | `turnuser` | TURN username |
+| `TURN_PASSWORD` | string | `$OPEN_BUTTON_TOKEN` | TURN password |
+
+#### PORTAL_CONFIG
+
+The structure of this variable is:
+- Each application is separated by the `|` character
+- Each application parameter is separated by the `:` character
+- Each application must specify `hostname:external_port:local_port:url_path:Application Name`
+
+The hostname in Docker instances will always be `localhost`
+
+Where the internal port and local port are not equal then Caddy will be configured to listen on `0.0.0.0:external_port` acting as a reverse proxy for `hostname:local_port`
+
+If the `external_port` and `local_port` are equal then Caddy will not act as a proxy but the Instance Portal UI will still create links. This is useful because it allows us to create links to Jupyter which is not controlled by Supervisor in Jupyter Launch mode.
+
+`url_path` will be appended to the instance address and is generally set to `/` but can be used to create application deep links.
+
+The `caddy_manager` script will write an equivalent config file at `/etc/portal.yaml` on boot if it does not already exist. This file can be edited in a running instance.
+
+Important: When defining multiple links to a single application, only the first should have non equal ports - We cannot proxy one application multiple times.
+
+Note: Instance Portal UI is **not** required and its own config declaration can be removed from `PORTAL_CONFIG`. This will not affect the authentication system.
+
+
 ## Dynamic Provisioning
 
 Sometimes you need flexibility without rebuilding the entire image. For quick customizations:
@@ -268,17 +353,19 @@ Here's a typical provisioning script:
 
 ```bash
 #!/bin/bash
-set -e
+
+# Cause the script to exit on failure.
+set -eo pipefail
 
 # Activate the main virtual environment
-. ${DATA_DIRECTORY}venv/main/bin/activate
+. /venv/main/bin/activate
 
 # Install your packages
 pip install your-packages
 
 # Download some useful files
-wget -P "${DATA_DIRECTORY}" https://example.org/my-application.tar.gz
-tar xvf "${DATA_DIRECTORY}/my-application.tar.gz"
+wget -P "${WORKSPACE}/" https://example.org/my-application.tar.gz
+tar xvf ${WORKSPACE}/my-application.tar.gz"
 
 # Set up any additional services
 echo "my-supervisor-config" > /etc/supervisor/conf.d/my-application.conf
@@ -287,7 +374,7 @@ chmod +x /opt/supervisor-scripts/my-application.sh
 
 # Reconfigure the instance portal
 rm -f /etc/portal.yaml
-PORTAL_CONFIG="localhost:1111:11111:/:Instance Portal|localhost:1234:11234:/:My Application"
+export PORTAL_CONFIG="localhost:1111:11111:/:Instance Portal|localhost:1234:11234:/:My Application"
 
 # Reload Supervisor
 supervisorctl reload
