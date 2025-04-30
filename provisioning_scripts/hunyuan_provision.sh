@@ -41,3 +41,43 @@ cd /app
 python3 /app/hyvideo/utils/preprocess_text_encoder_tokenizer_utils.py \
   --input_dir ./ckpts/llava-llama-3-8b-v1_1-transformers \
   --output_dir ./ckpts/text_encoder
+  # Install Gradio for the UI
+pip install gradio
+
+# Create supervisor startup script
+mkdir -p /opt/supervisor-scripts
+echo '#!/bin/bash
+
+# Wait for provisioning to complete
+while [ -f "/.provisioning" ]; do
+  echo "HunyuanVideo UI startup paused until provisioning completes" >> /var/log/portal/hunyuan-ui.log
+  sleep 10
+done
+
+cd /app
+python3 hunyuan_ui.py >> /var/log/portal/hunyuan-ui.log 2>&1
+' > /opt/supervisor-scripts/hunyuan-ui.sh
+
+chmod +x /opt/supervisor-scripts/hunyuan-ui.sh
+
+# Create supervisor config
+mkdir -p /etc/supervisor/conf.d
+echo '[program:hunyuan-ui]
+environment=PROC_NAME="%(program_name)s"
+command=/opt/supervisor-scripts/hunyuan-ui.sh
+autostart=true
+autorestart=unexpected
+exitcodes=0
+startsecs=0
+stopasgroup=true
+killasgroup=true
+stopsignal=TERM
+stopwaitsecs=10
+stdout_logfile=/dev/stdout
+redirect_stderr=true
+stdout_events_enabled=true
+stdout_logfile_maxbytes=0
+stdout_logfile_backups=0
+' > /etc/supervisor/conf.d/hunyuan-ui.conf
+
+echo "HunyuanVideo UI has been set up and will start automatically after provisioning"
