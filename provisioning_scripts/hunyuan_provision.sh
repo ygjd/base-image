@@ -1,4 +1,8 @@
 #!/bin/bash
+# Provisioning script for Hunyuan + Gradio UI
+# Author: Jay Hill
+# For use with VastAI PyTorch base image
+
 # Set environment
 export CUDA_HOME=/usr/local/cuda
 export DEBIAN_FRONTEND=noninteractive
