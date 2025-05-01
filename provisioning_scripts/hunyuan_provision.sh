@@ -80,13 +80,16 @@ python3 /app/hyvideo/utils/preprocess_text_encoder_tokenizer_utils.py \
   --input_dir ./ckpts/llava-llama-3-8b-v1_1-transformers \
   --output_dir ./ckpts/text_encoder
 
+# Create file to signal provisioning is complete
+touch /app/.provisioning_complete
+
 # Create supervisor startup script
 mkdir -p /opt/supervisor-scripts
 echo '#!/bin/bash
-# Wait for provisioning to complete
-while [ -f "/.provisioning" ]; do
-  echo "HunyuanVideo UI startup paused until provisioning completes" >> /var/log/portal/hunyuan-ui.log
-  sleep 10
+# Wait until provisioning is fully complete
+while [ ! -f "/app/.provisioning_complete" ]; do
+  echo "Waiting for provisioning to complete..." >> /var/log/portal/hunyuan-ui.log
+  sleep 30
 done
 
 cd /app
@@ -94,6 +97,8 @@ cd /app
 pip install gradio loguru einops imageio diffusers transformers accelerate>=0.14.0 > /dev/null 2>&1
 pip install flash-attn --no-build-isolation > /dev/null 2>&1
 pip install imageio[ffmpeg] imageio[pyav] > /dev/null 2>&1
+
+# Only start the UI after provisioning is complete
 python3 hunyuan_ui.py >> /var/log/portal/hunyuan-ui.log 2>&1
 ' > /opt/supervisor-scripts/hunyuan-ui.sh
 chmod +x /opt/supervisor-scripts/hunyuan-ui.sh
@@ -118,15 +123,9 @@ stdout_logfile_maxbytes=0
 stdout_logfile_backups=0
 ' > /etc/supervisor/conf.d/hunyuan-ui.conf
 
-# Create provisioning marker
-touch /.provisioning
-
 # Restart supervisor
 supervisorctl reread
 supervisorctl update
-
-# Remove provisioning marker
-rm -f /.provisioning
 
 echo "HunyuanVideo UI has been set up and will start automatically after provisioning"
 echo "The UI should be accessible at http://localhost:8081 or the public URL provided by Vast.ai"
