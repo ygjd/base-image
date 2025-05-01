@@ -31,6 +31,17 @@ pip install xfuser==0.4.0
 pip uninstall -y torch torchvision
 pip install torch==2.4.0 torchvision==0.19.0 --index-url https://download.pytorch.org/whl/cu124
 
+# Install specific dependencies you mentioned
+pip install loguru einops imageio diffusers transformers
+pip install flash-attn --no-build-isolation
+
+# Install Gradio and its dependencies
+pip install gradio
+pip install uvicorn fastapi pandas numpy pillow
+pip install ffmpeg-python moviepy opencv-python
+pip install jinja2 markdown websockets aiohttp httpx
+pip install orjson pyyaml aiofiles python-multipart av
+
 # Download core HunyuanVideo model (transformers + vae)
 huggingface-cli download tencent/HunyuanVideo --local-dir ./ckpts
 
@@ -45,23 +56,18 @@ cd /app
 python3 /app/hyvideo/utils/preprocess_text_encoder_tokenizer_utils.py \
   --input_dir ./ckpts/llava-llama-3-8b-v1_1-transformers \
   --output_dir ./ckpts/text_encoder
-  # Install Gradio for the UI
-pip install gradio
 
 # Create supervisor startup script
 mkdir -p /opt/supervisor-scripts
 echo '#!/bin/bash
-
 # Wait for provisioning to complete
 while [ -f "/.provisioning" ]; do
   echo "HunyuanVideo UI startup paused until provisioning completes" >> /var/log/portal/hunyuan-ui.log
   sleep 10
 done
-
 cd /app
 python3 hunyuan_ui.py >> /var/log/portal/hunyuan-ui.log 2>&1
 ' > /opt/supervisor-scripts/hunyuan-ui.sh
-
 chmod +x /opt/supervisor-scripts/hunyuan-ui.sh
 
 # Create supervisor config
