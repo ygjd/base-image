@@ -99,25 +99,31 @@ python3 hunyuan_ui.py >> /var/log/portal/hunyuan-ui.log 2>&1
 ' > /opt/supervisor-scripts/hunyuan-ui.sh
 chmod +x /opt/supervisor-scripts/hunyuan-ui.sh
 
-# Create supervisor config
-mkdir -p /etc/supervisor/conf.d
-echo '[program:hunyuan-ui]
-environment=PROC_NAME="%(program_name)s"
-command=/opt/supervisor-scripts/hunyuan-ui.sh
-autostart=true
-autorestart=unexpected
-exitcodes=0
-startsecs=0
-stopasgroup=true
-killasgroup=true
-stopsignal=TERM
-stopwaitsecs=10
-stdout_logfile=/dev/stdout
-redirect_stderr=true
-stdout_events_enabled=true
-stdout_logfile_maxbytes=0
-stdout_logfile_backups=0
-' > /etc/supervisor/conf.d/hunyuan-ui.conf
+# Create supervisor startup script
+mkdir -p /opt/supervisor-scripts
+echo '#!/bin/bash
+# Wait until provisioning is fully complete
+while [ ! -f "/app/.provisioning_complete" ]; do
+  echo "Waiting for provisioning to complete..." >> /var/log/portal/hunyuan-ui.log
+  sleep 30
+done
+
+cd /app
+# Force install packages in the EXACT same Python environment that will run the UI
+/usr/bin/python3 -m pip install loguru einops imageio diffusers transformers
+/usr/bin/python3 -m pip install flash-attn --no-build-isolation
+/usr/bin/python3 -m pip install gradio --no-cache-dir
+/usr/bin/python3 -m pip install accelerate>=0.14.0
+/usr/bin/python3 -m pip install imageio[ffmpeg] imageio[pyav]
+
+# Create results directory if it doesn't exist
+mkdir -p /app/results
+chmod 777 /app/results
+
+# Only start the UI after provisioning is complete using the same Python interpreter
+/usr/bin/python3 hunyuan_ui.py >> /var/log/portal/hunyuan-ui.log 2>&1
+' > /opt/supervisor-scripts/hunyuan-ui.sh
+chmod +x /opt/supervisor-scripts/hunyuan-ui.sh
 
 # Restart supervisor
 supervisorctl reread
