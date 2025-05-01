@@ -1,6 +1,7 @@
 #!/bin/bash
 # Provisioning script for Hunyuan + Gradio UI
 # Author: Jay Hill
+# Simplified Provisioning Script for Hunyuan + Gradio UI
 # For use with VastAI PyTorch base image
 
 # Set environment
@@ -10,7 +11,13 @@ export PYTHONPATH=/app:$PYTHONPATH
 export PATH=/app:$PATH
 
 # Clean and prep workspace
-rm -rf /app && mkdir -p /app && cd /app || exit 1
+rm -rf /app
+mkdir -p /app
+cd /app || exit 1
+
+# Create log directory
+mkdir -p /var/log/portal
+touch /var/log/portal/hunyuan-ui.log
 
 # Clone the official repo
 git clone https://github.com/tencent/HunyuanVideo . || exit 1
@@ -27,54 +34,44 @@ pip install ninja
 pip install git+https://github.com/Dao-AILab/flash-attention.git@v2.6.3 --no-build-isolation
 pip install xfuser==0.4.0
 
-# Ensure PyTorch and torchvision versions - critical for compatibility
-pip uninstall -y torch torchvision
+# Reinstall PyTorch to ensure correct version
 pip install torch==2.4.0 torchvision==0.19.0 --index-url https://download.pytorch.org/whl/cu124
 
-# Install Gradio BEFORE other dependencies to ensure it's properly registered
-pip install gradio --no-cache-dir
-
-# Install specific dependencies with --force-reinstall to ensure they're properly installed
-pip install --force-reinstall loguru einops imageio diffusers transformers
-pip install flash-attn --no-build-isolation
+# Install Gradio and critical dependencies with explicit versions
+pip install gradio==4.19.1 --no-cache-dir
+pip install loguru==0.7.2 --no-cache-dir
+pip install einops==0.7.0 --no-cache-dir
+pip install imageio==2.31.6 --no-cache-dir
+pip install diffusers==0.26.3 --no-cache-dir
+pip install transformers==4.41.1 --no-cache-dir
+pip install flash-attn==2.7.4 --no-build-isolation
 
 # Install remaining dependencies
-pip install uvicorn fastapi pandas numpy pillow
-pip install ffmpeg-python moviepy opencv-python
-pip install jinja2 markdown websockets aiohttp httpx
-pip install orjson pyyaml aiofiles python-multipart av
+pip install uvicorn fastapi pandas numpy pillow ffmpeg-python moviepy opencv-python
+pip install jinja2 markdown websockets aiohttp httpx orjson pyyaml aiofiles python-multipart av
 
 # Verify critical installations
-pip list | grep gradio || echo "CRITICAL ERROR: gradio not installed"
-pip list | grep loguru || echo "CRITICAL ERROR: loguru not installed"
+pip list | grep gradio
+pip list | grep loguru
+pip list | grep flash-attn
+pip list | grep transformers
 
-# Download core HunyuanVideo model (transformers + vae)
+# Download model files
 huggingface-cli download tencent/HunyuanVideo --local-dir ./ckpts
-
-# Download LLaVA model for llm encoder (text_encoder)
 huggingface-cli download xtuner/llava-llama-3-8b-v1_1-transformers --local-dir ./ckpts/llava-llama-3-8b-v1_1-transformers
-
-# Download CLIP model into text_encoder_2 folder
 huggingface-cli download openai/clip-vit-large-patch14 --local-dir ./ckpts/text_encoder_2
 
-# Preprocess LLaVA model into usable text_encoder folder
+# Preprocess LLaVA model
 cd /app
 python3 /app/hyvideo/utils/preprocess_text_encoder_tokenizer_utils.py \
   --input_dir ./ckpts/llava-llama-3-8b-v1_1-transformers \
   --output_dir ./ckpts/text_encoder
 
-# Create supervisor startup script
+# Create startup script
 mkdir -p /opt/supervisor-scripts
 echo '#!/bin/bash
-# Wait for provisioning to complete
-while [ -f "/.provisioning" ]; do
-  echo "HunyuanVideo UI startup paused until provisioning completes" >> /var/log/portal/hunyuan-ui.log
-  sleep 10
-done
-
 cd /app
-# Force install any missing packages on startup if needed
-pip install gradio loguru einops imageio diffusers transformers > /dev/null 2>&1
+pip install gradio==4.19.1 loguru==0.7.2 einops==0.7.0 imageio==2.31.6 diffusers==0.26.3 transformers==4.41.1 flash-attn==2.7.4 --no-build-isolation
 python3 hunyuan_ui.py >> /var/log/portal/hunyuan-ui.log 2>&1
 ' > /opt/supervisor-scripts/hunyuan-ui.sh
 chmod +x /opt/supervisor-scripts/hunyuan-ui.sh
@@ -82,21 +79,21 @@ chmod +x /opt/supervisor-scripts/hunyuan-ui.sh
 # Create supervisor config
 mkdir -p /etc/supervisor/conf.d
 echo '[program:hunyuan-ui]
-environment=PROC_NAME="%(program_name)s"
 command=/opt/supervisor-scripts/hunyuan-ui.sh
 autostart=true
-autorestart=unexpected
-exitcodes=0
-startsecs=0
+autorestart=true
+startretries=5
+startsecs=10
 stopasgroup=true
 killasgroup=true
-stopsignal=TERM
-stopwaitsecs=10
-stdout_logfile=/dev/stdout
-redirect_stderr=true
-stdout_events_enabled=true
-stdout_logfile_maxbytes=0
-stdout_logfile_backups=0
+stdout_logfile=/var/log/portal/hunyuan-ui.log
+stderr_logfile=/var/log/portal/hunyuan-ui.log
+priority=100
 ' > /etc/supervisor/conf.d/hunyuan-ui.conf
 
-echo "HunyuanVideo UI has been set up and will start automatically after provisioning"
+# Restart supervisor
+supervisorctl reread
+supervisorctl update
+
+echo "Hunyuan Video Generation provisioning complete"
+echo "The UI should be accessible at http://localhost:8081 or the public URL provided by Vast.ai"
