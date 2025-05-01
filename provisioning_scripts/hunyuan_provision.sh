@@ -31,7 +31,6 @@ pip install torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https
 
 # Install FlashAttention and xDiT
 pip install ninja
-pip install git+https://github.com/Dao-AILab/flash-attention.git@v2.6.3 --no-build-isolation
 pip install xfuser==0.4.0
 
 # Reinstall PyTorch to ensure correct version
