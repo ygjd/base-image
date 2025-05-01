@@ -14,9 +14,15 @@ rm -rf /app
 mkdir -p /app
 cd /app || exit 1
 
+# Create and set permissions for the results directory
+mkdir -p /app/results
+chmod 777 /app/results
+ln -sf /app/results /app/./results 
+
 # Create log directory
 mkdir -p /var/log/portal
 touch /var/log/portal/hunyuan-ui.log
+
 
 # Clone the official repo
 git clone https://github.com/tencent/HunyuanVideo . || exit 1
@@ -50,6 +56,10 @@ pip install flash-attn --no-build-isolation
 
 # Install accelerate for CPU offloading
 pip install accelerate>=0.14.0
+
+# Install imageio with ffmpeg and pyav plugins - this fixes the video saving issue
+pip install imageio
+pip install imageio[ffmpeg] imageio[pyav]
 
 # Install remaining dependencies
 pip install uvicorn fastapi pandas numpy pillow
