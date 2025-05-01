@@ -1,7 +1,5 @@
 #!/bin/bash
 # Provisioning script for Hunyuan + Gradio UI
-# Author: Jay Hill
-# Simplified Provisioning Script for Hunyuan + Gradio UI
 # For use with VastAI PyTorch base image
 
 # Set environment
@@ -37,31 +35,43 @@ pip install xfuser==0.4.0
 # Reinstall PyTorch to ensure correct version
 pip install torch==2.4.0 torchvision==0.19.0 --index-url https://download.pytorch.org/whl/cu124
 
-# Install Gradio and critical dependencies with explicit versions
-pip install gradio==4.19.1 --no-cache-dir
-pip install loguru==0.7.2 --no-cache-dir
-pip install einops==0.7.0 --no-cache-dir
-pip install imageio==2.31.6 --no-cache-dir
-pip install diffusers==0.26.3 --no-cache-dir
-pip install transformers==4.41.1 --no-cache-dir
-pip install flash-attn==2.7.4 --no-build-isolation
+# Install specific dependencies you mentioned
+pip install loguru einops imageio diffusers transformers
+
+# Install Gradio BEFORE other dependencies to ensure it's properly registered
+pip install gradio --no-cache-dir
+
+# Install specific dependencies with --force-reinstall to ensure they're properly installed
+pip install --force-reinstall loguru einops imageio diffusers transformers
+
+# Install flash-attn without version specification - this was the working approach
+pip install flash-attn --no-build-isolation
+
+# Install accelerate for CPU offloading
+pip install accelerate>=0.14.0
 
 # Install remaining dependencies
-pip install uvicorn fastapi pandas numpy pillow ffmpeg-python moviepy opencv-python
-pip install jinja2 markdown websockets aiohttp httpx orjson pyyaml aiofiles python-multipart av
+pip install uvicorn fastapi pandas numpy pillow
+pip install ffmpeg-python moviepy opencv-python
+pip install jinja2 markdown websockets aiohttp httpx
+pip install orjson pyyaml aiofiles python-multipart av
 
 # Verify critical installations
-pip list | grep gradio
-pip list | grep loguru
-pip list | grep flash-attn
-pip list | grep transformers
+pip list | grep gradio || echo "CRITICAL ERROR: gradio not installed"
+pip list | grep loguru || echo "CRITICAL ERROR: loguru not installed"
+pip list | grep flash-attn || echo "CRITICAL ERROR: flash-attn not installed"
+pip list | grep accelerate || echo "CRITICAL ERROR: accelerate not installed"
 
-# Download model files
+# Download core HunyuanVideo model (transformers + vae)
 huggingface-cli download tencent/HunyuanVideo --local-dir ./ckpts
+
+# Download LLaVA model for llm encoder (text_encoder)
 huggingface-cli download xtuner/llava-llama-3-8b-v1_1-transformers --local-dir ./ckpts/llava-llama-3-8b-v1_1-transformers
+
+# Download CLIP model into text_encoder_2 folder
 huggingface-cli download openai/clip-vit-large-patch14 --local-dir ./ckpts/text_encoder_2
 
-# Preprocess LLaVA model
+# Preprocess LLaVA model into usable text_encoder folder
 cd /app
 python3 /app/hyvideo/utils/preprocess_text_encoder_tokenizer_utils.py \
   --input_dir ./ckpts/llava-llama-3-8b-v1_1-transformers \
@@ -70,8 +80,16 @@ python3 /app/hyvideo/utils/preprocess_text_encoder_tokenizer_utils.py \
 # Create startup script
 mkdir -p /opt/supervisor-scripts
 echo '#!/bin/bash
+# Wait for any remaining provisioning
+while [ -f "/.provisioning" ]; do
+  echo "HunyuanVideo UI startup paused until provisioning completes" >> /var/log/portal/hunyuan-ui.log
+  sleep 10
+done
+
 cd /app
-pip install gradio==4.19.1 loguru==0.7.2 einops==0.7.0 imageio==2.31.6 diffusers==0.26.3 transformers==4.41.1 flash-attn==2.7.4 --no-build-isolation
+# Force install any missing packages on startup if needed - using the approach that worked
+pip install gradio loguru einops imageio diffusers transformers accelerate>=0.14.0 > /dev/null 2>&1
+pip install flash-attn --no-build-isolation > /dev/null 2>&1
 python3 hunyuan_ui.py >> /var/log/portal/hunyuan-ui.log 2>&1
 ' > /opt/supervisor-scripts/hunyuan-ui.sh
 chmod +x /opt/supervisor-scripts/hunyuan-ui.sh
@@ -91,9 +109,15 @@ stderr_logfile=/var/log/portal/hunyuan-ui.log
 priority=100
 ' > /etc/supervisor/conf.d/hunyuan-ui.conf
 
+# Create provisioning marker
+touch /.provisioning
+
 # Restart supervisor
 supervisorctl reread
 supervisorctl update
+
+# Remove provisioning marker
+rm -f /.provisioning
 
 echo "Hunyuan Video Generation provisioning complete"
 echo "The UI should be accessible at http://localhost:8081 or the public URL provided by Vast.ai"
