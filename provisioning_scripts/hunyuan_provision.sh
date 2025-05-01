@@ -14,10 +14,6 @@ rm -rf /app
 mkdir -p /app
 cd /app || exit 1
 
-# Create and set permissions for the results directory
-mkdir -p /app/results
-chmod 777 /app/results
-ln -sf /app/results /app/./results  # Create symbolic link from relative to absolute path
 
 # Create log directory
 mkdir -p /var/log/portal
