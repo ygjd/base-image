@@ -31,16 +31,22 @@ pip install xfuser==0.4.0
 pip uninstall -y torch torchvision
 pip install torch==2.4.0 torchvision==0.19.0 --index-url https://download.pytorch.org/whl/cu124
 
-# Install specific dependencies you mentioned
-pip install loguru einops imageio diffusers transformers
+# Install Gradio BEFORE other dependencies to ensure it's properly registered
+pip install gradio --no-cache-dir
+
+# Install specific dependencies with --force-reinstall to ensure they're properly installed
+pip install --force-reinstall loguru einops imageio diffusers transformers
 pip install flash-attn --no-build-isolation
 
-# Install Gradio and its dependencies
-pip install gradio
+# Install remaining dependencies
 pip install uvicorn fastapi pandas numpy pillow
 pip install ffmpeg-python moviepy opencv-python
 pip install jinja2 markdown websockets aiohttp httpx
 pip install orjson pyyaml aiofiles python-multipart av
+
+# Verify critical installations
+pip list | grep gradio || echo "CRITICAL ERROR: gradio not installed"
+pip list | grep loguru || echo "CRITICAL ERROR: loguru not installed"
 
 # Download core HunyuanVideo model (transformers + vae)
 huggingface-cli download tencent/HunyuanVideo --local-dir ./ckpts
@@ -65,7 +71,10 @@ while [ -f "/.provisioning" ]; do
   echo "HunyuanVideo UI startup paused until provisioning completes" >> /var/log/portal/hunyuan-ui.log
   sleep 10
 done
+
 cd /app
+# Force install any missing packages on startup if needed
+pip install gradio loguru einops imageio diffusers transformers > /dev/null 2>&1
 python3 hunyuan_ui.py >> /var/log/portal/hunyuan-ui.log 2>&1
 ' > /opt/supervisor-scripts/hunyuan-ui.sh
 chmod +x /opt/supervisor-scripts/hunyuan-ui.sh
