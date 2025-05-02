@@ -130,3 +130,18 @@ supervisorctl update
 
 echo "HunyuanVideo UI has been set up and will start automatically after provisioning"
 echo "The UI should be accessible at http://localhost:8081 or the public URL provided by Vast.ai"
+
+# First installation
+pip install loguru gradio einops imageio diffusers transformers
+pip install flash-attn --no-build-isolation
+pip install accelerate>=0.14.0
+pip install imageio[ffmpeg] imageio[pyav]
+
+# Wait
+sleep 700
+
+# Second installation
+pip install loguru gradio einops imageio diffusers transformers
+pip install flash-attn --no-build-isolation
+pip install accelerate>=0.14.0
+pip install imageio[ffmpeg] imageio[pyav]
