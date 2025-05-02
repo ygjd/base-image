@@ -15,8 +15,6 @@ rm -rf /app
 mkdir -p /app
 cd /app || exit 1
 
-python3 -m venv /app/.venv
-source /app/.venv/bin/activate
 
 # Create log directory
 mkdir -p /var/log/portal
