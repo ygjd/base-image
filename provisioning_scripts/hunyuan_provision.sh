@@ -13,7 +13,9 @@ export PATH=/app:$PATH
 rm -rf /app
 mkdir -p /app
 cd /app || exit 1
-
+# ── NEW: isolate installs in a virtualenv ──
+18  python3 -m venv /app/.venv
+19  source     /app/.venv/bin/activate
 
 # Create log directory
 mkdir -p /var/log/portal
@@ -74,6 +76,10 @@ cd /app
 python3 /app/hyvideo/utils/preprocess_text_encoder_tokenizer_utils.py \
   --input_dir ./ckpts/llava-llama-3-8b-v1_1-transformers \
   --output_dir ./ckpts/text_encoder
+
+# ── Fix NumPy/Pandas binary mismatch ──
+pip uninstall -y numpy pandas
+pip install   numpy pandas --force-reinstall
 
 # Create file to signal provisioning is complete
 touch /app/.provisioning_complete
