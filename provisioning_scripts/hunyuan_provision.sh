@@ -122,11 +122,6 @@ cd /app
 mkdir -p /app/results
 chmod 777 /app/results
 
-# Overwrite the supervisor script with exactly one line
-echo "/usr/bin/python3 hunyuan_ui.py >> /var/log/portal/hunyuan-ui.log 2>&1" \
-  > /opt/supervisor-scripts/hunyuan-ui.sh
-chmod +x /opt/supervisor-scripts/hunyuan-ui.sh
-
 # Restart supervisor
 supervisorctl reread
 supervisorctl update
@@ -144,5 +139,5 @@ echo "HunyuanVideo UI has been set up and will start automatically after provisi
  pip install imageio[ffmpeg] imageio[pyav]
  cd /app
  python3 gradio_server.py
-echo "The UI should be accessible at http://localhost:8081 or the public URL provided by Vast.ai"
+ echo "The UI should be accessible at http://localhost:8081 or the public URL provided by Vast.ai"
 
