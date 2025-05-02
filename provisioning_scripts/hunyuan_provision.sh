@@ -119,9 +119,9 @@ cd /app
 mkdir -p /app/results
 chmod 777 /app/results
 
-# Only start the UI after provisioning is complete using the same Python interpreter
-/usr/bin/python3 hunyuan_ui.py >> /var/log/portal/hunyuan-ui.log 2>&1
-' > /opt/supervisor-scripts/hunyuan-ui.sh
+# Overwrite the supervisor script with exactly one line
+echo "/usr/bin/python3 hunyuan_ui.py >> /var/log/portal/hunyuan-ui.log 2>&1" \
+  > /opt/supervisor-scripts/hunyuan-ui.sh
 chmod +x /opt/supervisor-scripts/hunyuan-ui.sh
 
 # Restart supervisor
