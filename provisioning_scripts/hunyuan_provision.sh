@@ -131,17 +131,77 @@ supervisorctl update
 echo "HunyuanVideo UI has been set up and will start automatically after provisioning"
 echo "The UI should be accessible at http://localhost:8081 or the public URL provided by Vast.ai"
 
-# First installation
-pip install loguru gradio einops imageio diffusers transformers
-pip install flash-attn --no-build-isolation
-pip install accelerate>=0.14.0
-pip install imageio[ffmpeg] imageio[pyav]
+# Re installation
+# Add this to the end of your provisioning script
+cat > /app/ensure_packages.py << ENDSCRIPT
+import sys
+import time
+import subprocess
+import importlib
+import os
 
-# Wait
-sleep 700
+def check_package(package):
+    try:
+        importlib.import_module(package)
+        print(f"✓ {package} is installed")
+        return True
+    except ImportError:
+        print(f"✗ {package} is not installed")
+        return False
 
-# Second installation
-pip install loguru gradio einops imageio diffusers transformers
-pip install flash-attn --no-build-isolation
-pip install accelerate>=0.14.0
-pip install imageio[ffmpeg] imageio[pyav]
+# Packages to check
+packages = ["loguru", "gradio", "einops", "imageio", "diffusers", "transformers", "flash_attn", "accelerate"]
+
+# Install packages function
+def install_packages():
+    subprocess.run(["pip", "install", "loguru", "gradio", "einops", "imageio", "diffusers", "transformers"])
+    subprocess.run(["pip", "install", "flash-attn", "--no-build-isolation"])
+    subprocess.run(["pip", "install", "accelerate>=0.14.0"])
+    subprocess.run(["pip", "install", "imageio[ffmpeg]", "imageio[pyav]"])
+
+# Try for 30 minutes maximum (30 attempts with 1 minute wait)
+for attempt in range(30):
+    print(f"Attempt {attempt+1}/30 to install packages")
+    
+    # Install all packages
+    install_packages()
+    
+    # Check if all packages are installed
+    missing = []
+    for pkg in packages:
+        if not check_package(pkg.replace('-', '_')):
+            missing.append(pkg)
+    
+    # If all packages are installed, start the server
+    if not missing:
+        print("All packages installed successfully!")
+        
+        # Check if server file exists
+        if os.path.exists("/app/gradio_server.py"):
+            print("Starting Gradio server...")
+            subprocess.run("cd /app && python3 gradio_server.py", shell=True)
+            break
+        elif os.path.exists("/app/hunyuan_ui.py"):
+            print("Starting Hunyuan UI...")
+            subprocess.run("cd /app && python3 hunyuan_ui.py", shell=True)
+            break
+        else:
+            print("Could not find server script. Looking for alternatives...")
+            # Try to find any gradio script
+            server_scripts = subprocess.run("find /app -name '*gradio*.py' -o -name '*ui.py'", shell=True, capture_output=True, text=True).stdout.strip().split('\n')
+            if server_scripts and server_scripts[0]:
+                script = server_scripts[0]
+                print(f"Found alternative script: {script}")
+                subprocess.run(f"cd /app && python3 {os.path.basename(script)}", shell=True)
+                break
+            else:
+                print("No server scripts found")
+    
+    print(f"Missing packages: {missing}")
+    print("Waiting 60 seconds before trying again...")
+    time.sleep(60)
+ENDSCRIPT
+
+# Make the script executable and run it
+chmod +x /app/ensure_packages.py
+python3 /app/ensure_packages.py
