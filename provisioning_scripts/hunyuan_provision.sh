@@ -9,10 +9,14 @@ export DEBIAN_FRONTEND=noninteractive
 export PYTHONPATH=/app:$PYTHONPATH
 export PATH=/app:$PATH
 
+
 # Clean and prep workspace
 rm -rf /app
 mkdir -p /app
 cd /app || exit 1
+
+python3 -m venv /app/.venv
+source /app/.venv/bin/activate
 
 # Create log directory
 mkdir -p /var/log/portal
@@ -129,9 +133,8 @@ supervisorctl update
 echo "HunyuanVideo UI has been set up and will start automatically after provisioning"
 
 # Force install packages in the EXACT same Python environment that will run the UI
-# ── NEW: isolate installs in a virtualenv ──
- python3 -m venv /app/.venv
- source     /app/.venv/bin/activate
+
+
  pip install loguru einops imageio diffusers transformers
  pip install flash-attn --no-build-isolation
  pip install gradio --no-cache-dir
