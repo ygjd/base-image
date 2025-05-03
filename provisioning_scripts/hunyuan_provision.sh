@@ -132,6 +132,8 @@ echo "HunyuanVideo UI has been set up and will start automatically after provisi
 
 # Force install packages in the EXACT same Python environment that will run the UI
 
+echo "Waiting 35 minutes for Hunyuan model downloads to complete..."
+sleep 2100  # 35 minutes in seconds
 
  pip install loguru einops imageio diffusers transformers
  pip install flash-attn --no-build-isolation
