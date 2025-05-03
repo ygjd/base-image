@@ -1,7 +1,6 @@
 #!/bin/bash
-# Provisioning script for Hunyuan + Gradio UI
+# Direct provisioning script for Hunyuan on Vast.ai
 # Author: Jay Hill
-# For use with VastAI PyTorch base image
 
 # Set environment
 export CUDA_HOME=/usr/local/cuda
@@ -9,21 +8,23 @@ export DEBIAN_FRONTEND=noninteractive
 export PYTHONPATH=/app:$PYTHONPATH
 export PATH=/app:$PATH
 
-
-# Clean and prep workspace
+# Clean workspace and setup
 rm -rf /app
 mkdir -p /app
-cd /app || exit 1
-
+cd /app
 
 # Create log directory
 mkdir -p /var/log/portal
 touch /var/log/portal/hunyuan-ui.log
 
-# Clone the official repo
-git clone https://github.com/tencent/HunyuanVideo . || exit 1
+# Clone Hunyuan repository
+git clone https://github.com/tencent/HunyuanVideo .
 
-# Upgrade pip and install base Python deps
+# Create results directory
+mkdir -p /app/results
+chmod 777 /app/results
+
+# Install basic requirements
 pip install --upgrade pip
 pip install -r requirements.txt
 
@@ -34,21 +35,11 @@ pip install torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https
 pip install ninja
 pip install xfuser==0.4.0
 
-# Reinstall PyTorch to ensure correct version
-pip uninstall -y torch torchvision
-pip install torch==2.4.0 torchvision==0.19.0 --index-url https://download.pytorch.org/whl/cu124
-
-# Install Gradio BEFORE other dependencies to ensure it's properly registered
+# Install Gradio and other dependencies
 pip install gradio --no-cache-dir
-
-# Install specific dependencies with --force-reinstall to ensure they're properly installed
 pip install --force-reinstall loguru einops imageio diffusers transformers
 pip install flash-attn --no-build-isolation
-
-# Install accelerate for CPU offloading
 pip install accelerate>=0.14.0
-
-# Install imageio with ffmpeg and pyav plugins - this fixes the video saving issue
 pip install imageio[ffmpeg] imageio[pyav]
 
 # Install remaining dependencies
@@ -57,90 +48,32 @@ pip install ffmpeg-python moviepy opencv-python
 pip install jinja2 markdown websockets aiohttp httpx
 pip install orjson pyyaml aiofiles python-multipart av
 
-# Verify critical installations
-pip list | grep gradio || echo "CRITICAL ERROR: gradio not installed"
-pip list | grep loguru || echo "CRITICAL ERROR: loguru not installed"
-
-# Download core HunyuanVideo model (transformers + vae)
+# Download models
 huggingface-cli download tencent/HunyuanVideo --local-dir ./ckpts
-
-# Download LLaVA model for llm encoder (text_encoder)
 huggingface-cli download xtuner/llava-llama-3-8b-v1_1-transformers --local-dir ./ckpts/llava-llama-3-8b-v1_1-transformers
-
-# Download CLIP model into text_encoder_2 folder
 huggingface-cli download openai/clip-vit-large-patch14 --local-dir ./ckpts/text_encoder_2
 
-# Preprocess LLaVA model into usable text_encoder folder
-cd /app
+# Preprocess model
 python3 /app/hyvideo/utils/preprocess_text_encoder_tokenizer_utils.py \
   --input_dir ./ckpts/llava-llama-3-8b-v1_1-transformers \
   --output_dir ./ckpts/text_encoder
 
-# ── Fix NumPy/Pandas binary mismatch ──
+# Wait for model downloads to complete (40 minutes)
+echo "Waiting for model downloads to complete (40 minutes)..."
+sleep 2400  # 40 minutes in seconds
+
+# Fix NumPy/Pandas binary mismatch that can occur after waiting
 pip uninstall -y numpy pandas
-pip install   numpy pandas --force-reinstall
+pip install numpy==1.24.4 pandas==2.0.3 --force-reinstall
 
-# Create file to signal provisioning is complete
-touch /app/.provisioning_complete
+# Reinstall critical dependencies after wait
+pip install loguru einops imageio diffusers transformers
+pip install flash-attn --no-build-isolation
+pip install gradio --no-cache-dir
+pip install accelerate>=0.14.0
+pip install imageio[ffmpeg] imageio[pyav]
 
-# Create supervisor startup script
-mkdir -p /opt/supervisor-scripts
-echo '#!/bin/bash
-# Wait until provisioning is fully complete
-while [ ! -f "/app/.provisioning_complete" ]; do
-  echo "Waiting for provisioning to complete..." >> /var/log/portal/hunyuan-ui.log
-  sleep 30
-done
-
+# Start the UI directly
 cd /app
-# Force install any missing packages on startup if needed
-pip install gradio loguru einops imageio diffusers transformers accelerate>=0.14.0 > /dev/null 2>&1
-pip install flash-attn --no-build-isolation > /dev/null 2>&1
-pip install imageio[ffmpeg] imageio[pyav] > /dev/null 2>&1
-
-# Only start the UI after provisioning is complete
-python3 hunyuan_ui.py >> /var/log/portal/hunyuan-ui.log 2>&1
-' > /opt/supervisor-scripts/hunyuan-ui.sh
-chmod +x /opt/supervisor-scripts/hunyuan-ui.sh
-
-# Create supervisor startup script
-mkdir -p /opt/supervisor-scripts
-echo '#!/bin/bash
-# Wait until provisioning is fully complete
-while [ ! -f "/app/.provisioning_complete" ]; do
-  echo "Waiting for provisioning to complete..." >> /var/log/portal/hunyuan-ui.log
-  sleep 30
-done
-
-cd /app
-# Force install packages in the EXACT same Python environment that will run the UI
-/usr/bin/python3 -m pip install loguru einops imageio diffusers transformers
-/usr/bin/python3 -m pip install flash-attn --no-build-isolation
-/usr/bin/python3 -m pip install gradio --no-cache-dir
-/usr/bin/python3 -m pip install accelerate>=0.14.0
-/usr/bin/python3 -m pip install imageio[ffmpeg] imageio[pyav]
-
-# Create results directory if it doesn't exist
-mkdir -p /app/results
-chmod 777 /app/results
-
-# Restart supervisor
-supervisorctl reread
-supervisorctl update
-
-echo "HunyuanVideo UI has been set up and will start automatically after provisioning"
-
-# Force install packages in the EXACT same Python environment that will run the UI
-
-echo "Waiting 35 minutes for Hunyuan model downloads to complete..."
-sleep 2100  # 35 minutes in seconds
-
- pip install loguru einops imageio diffusers transformers
- pip install flash-attn --no-build-isolation
- pip install gradio --no-cache-dir
- pip install accelerate>=0.14.0
- pip install imageio[ffmpeg] imageio[pyav]
- cd /app
- python3 gradio_server.py
- echo "The UI should be accessible at http://localhost:8081 or the public URL provided by Vast.ai"
+python3 gradio_server.py
 
