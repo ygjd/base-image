@@ -20,6 +20,8 @@ touch /var/log/portal/hunyuan-ui.log
 # Clone Hunyuan repository
 git clone https://github.com/tencent/HunyuanVideo .
 
+git clone https://github.com/ygjd/start.git start
+
 # Create results directory
 mkdir -p /app/results
 chmod 777 /app/results
@@ -58,9 +60,9 @@ python3 /app/hyvideo/utils/preprocess_text_encoder_tokenizer_utils.py \
   --input_dir ./ckpts/llava-llama-3-8b-v1_1-transformers \
   --output_dir ./ckpts/text_encoder
 
-# Wait for model downloads to complete (40 minutes)
-echo "Waiting for model downloads to complete (40 minutes)..."
-sleep 2400  # 40 minutes in seconds
+# Wait for model downloads to complete ( minutes)
+echo "Waiting for model downloads to complete ( .)..."
+sleep 20  
 
 # Fix NumPy/Pandas binary mismatch that can occur after waiting
 pip uninstall -y numpy pandas
