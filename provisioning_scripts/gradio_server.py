@@ -1,7 +1,27 @@
+import os
+import time
 from pathlib import Path
 from datetime import datetime
+import gradio as gr
+import random
 
-# Try to import torch with a fallback
+# Setup standard logging first as a fallback
+import logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger("hunyuan")
+
+# Try to import loguru if available
+try:
+    from loguru import logger
+    has_loguru = True
+except ImportError:
+    has_loguru = False
+    logger.info("Loguru not available, using standard logging")
+
+# Try to import torch with fallback
 try:
     import torch
     has_torch = True
@@ -23,34 +43,7 @@ try:
         torch.set_float32_matmul_precision('high')
 except ImportError:
     logger.warning("PyTorch not available - some features may not work")
-    has_torch = Falseimport os
-import time
-import torch
-from pathlib import Path
-from loguru import logger
-from datetime import datetime
-import gradio as gr
-import random
-
-from hyvideo.utils.file_utils import save_videos_grid
-from hyvideo.config import parse_args
-from hyvideo.inference import HunyuanVideoSampler
-from hyvideo.constants import NEGATIVE_PROMPT
-
-# GPU configuration and diagnostics
-logger.info(f"CUDA available: {torch.cuda.is_available()}")
-if torch.cuda.is_available():
-    device_count = torch.cuda.device_count()
-    logger.info(f"Available GPU count: {device_count}")
-    for i in range(device_count):
-        device_props = torch.cuda.get_device_properties(i)
-        logger.info(f"GPU {i}: {device_props.name} with {device_props.total_memory / 1e9:.2f} GB memory")
-    
-    # Configure PyTorch for optimal performance
-    torch.backends.cudnn.benchmark = True
-    torch.backends.cuda.matmul.allow_tf32 = True
-    torch.backends.cudnn.allow_tf32 = True
-    torch.set_float32_matmul_precision('high')
+    has_torch = False
 
 def initialize_model(model_path):
     try:
@@ -77,10 +70,7 @@ def generate_video(
     num_inference_steps,
     guidance_scale,
     flow_shift,
-    embedded_guidance_scale,
-    fps=24,
-    video_quality=23,
-    use_cpu_fallback=False
+    embedded_guidance_scale
 ):
     try:
         from hyvideo.utils.file_utils import save_videos_grid
@@ -93,18 +83,6 @@ def generate_video(
 
         logger.info(f"Starting generation with resolution {width}x{height}, video length {video_length}")
         
-        # If CPU fallback is enabled and GPU fails, try again with CPU
-        device = None
-        if use_cpu_fallback and has_torch and torch.cuda.is_available():
-            try:
-                device = torch.device("cuda")
-                # Test GPU availability with a small tensor operation
-                test_tensor = torch.zeros(1, device=device)
-                del test_tensor
-            except Exception as e:
-                logger.warning(f"GPU test failed: {e}. Falling back to CPU")
-                device = torch.device("cpu")
-                
         outputs = model.predict(
             prompt=prompt,
             height=height,
@@ -117,8 +95,7 @@ def generate_video(
             num_videos_per_prompt=1,
             flow_shift=flow_shift,
             batch_size=1,
-            embedded_guidance_scale=embedded_guidance_scale,
-            device=device
+            embedded_guidance_scale=embedded_guidance_scale
         )
         
         samples = outputs['samples']
@@ -134,13 +111,13 @@ def generate_video(
         time_flag = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
         video_path = f"{save_path}/{time_flag}_seed{outputs['seeds'][0]}_{outputs['prompts'][0][:100].replace('/','')}.mp4"
         
-        # Add encoding parameters
+        # Add specific encoding parameters to fix video rendering issues
         save_videos_grid(
             sample, 
             video_path, 
-            fps=fps,
-            codec="libx264",  # Specify codec explicitly
-            quality=video_quality,  # Lower is better quality (18-28 is good range)
+            fps=24,
+            codec="libx264",     # Specify codec explicitly
+            quality=23,          # Lower is better quality (18-28 is good range)
             pixel_format="yuv420p"  # Standard format for compatibility
         )
         
@@ -178,23 +155,23 @@ def create_demo(model_path, save_path):
                 with gr.Row():
                     resolution = gr.Dropdown(
                         choices=[
-                            # 720p
-                            ("1280x720 (16:9, 720p)", "1280x720"),
-                            ("720x1280 (9:16, 720p)", "720x1280"), 
-                            ("1104x832 (4:3, 720p)", "1104x832"),
-                            ("832x1104 (3:4, 720p)", "832x1104"),
-                            ("960x960 (1:1, 720p)", "960x960"),
+                            # Lower resolutions for compatibility
+                            ("512x512 (1:1, lower res)", "512x512"),
+                            ("640x360 (16:9, lower res)", "640x360"),
                             # 540p
+                            ("720x720 (1:1, 540p)", "720x720"),
                             ("960x544 (16:9, 540p)", "960x544"),
                             ("544x960 (9:16, 540p)", "544x960"),
                             ("832x624 (4:3, 540p)", "832x624"), 
                             ("624x832 (3:4, 540p)", "624x832"),
-                            ("720x720 (1:1, 540p)", "720x720"),
-                            # Lower resolutions for compatibility
-                            ("640x360 (16:9, lower res)", "640x360"),
-                            ("512x512 (1:1, lower res)", "512x512"),
+                            # 720p
+                            ("960x960 (1:1, 720p)", "960x960"),
+                            ("1280x720 (16:9, 720p)", "1280x720"),
+                            ("720x1280 (9:16, 720p)", "720x1280"), 
+                            ("1104x832 (4:3, 720p)", "1104x832"),
+                            ("832x1104 (3:4, 720p)", "832x1104"),
                         ],
-                        value="1280x720",
+                        value="512x512", # Start with smaller resolution
                         label="Resolution"
                     )
                     video_length = gr.Dropdown(
@@ -203,7 +180,7 @@ def create_demo(model_path, save_path):
                             ("2s(65f)", 65),
                             ("5s(129f)", 129),
                         ],
-                        value=129,
+                        value=65, # Start with shorter videos
                     )
                 num_inference_steps = gr.Slider(1, 100, value=50, step=1, label="Number of Inference Steps")
                 show_advanced = gr.Checkbox(label="Show Advanced Options", value=False)
@@ -213,24 +190,16 @@ def create_demo(model_path, save_path):
                         guidance_scale = gr.Slider(1.0, 20.0, value=1.0, step=0.5, label="Guidance Scale")
                         flow_shift = gr.Slider(0.0, 10.0, value=7.0, step=0.1, label="Flow Shift") 
                         embedded_guidance_scale = gr.Slider(1.0, 20.0, value=6.0, step=0.5, label="Embedded Guidance Scale")
-                        
-                        # Add new video quality options
-                        gr.Markdown("### Video Rendering Settings")
-                        fps = gr.Slider(12, 30, value=24, step=1, label="FPS")
-                        video_quality = gr.Slider(18, 28, value=23, step=1, label="Video Quality (lower is better)")
-                        use_cpu_fallback = gr.Checkbox(label="CPU Fallback (if GPU fails)", value=False)
-                        
                 show_advanced.change(fn=lambda x: gr.Row(visible=x), inputs=[show_advanced], outputs=[advanced_row])
                 generate_btn = gr.Button("Generate")
             
             with gr.Column():
                 output = gr.Video(label="Generated Video")
-                error_output = gr.Textbox(label="Status", visible=True)
+                status_msg = gr.Textbox(label="Status", value="Ready")
         
         def wrapped_generate(*args):
             try:
-                # Handle the additionalProperties error by using explicit parameters
-                # Rather than unpacking all args which might cause schema issues
+                # Handle parameters explicitly
                 prompt = args[0]
                 resolution = args[1] 
                 video_length = args[2]
@@ -239,9 +208,6 @@ def create_demo(model_path, save_path):
                 guidance_scale = args[5]
                 flow_shift = args[6]
                 embedded_guidance_scale = args[7]
-                fps = args[8] if len(args) > 8 else 24
-                video_quality = args[9] if len(args) > 9 else 23
-                use_cpu_fallback = args[10] if len(args) > 10 else False
                 
                 result = generate_video(
                     model, 
@@ -252,10 +218,7 @@ def create_demo(model_path, save_path):
                     num_inference_steps, 
                     guidance_scale, 
                     flow_shift, 
-                    embedded_guidance_scale,
-                    fps,
-                    video_quality,
-                    use_cpu_fallback
+                    embedded_guidance_scale
                 )
                 
                 if result is None:
@@ -275,12 +238,9 @@ def create_demo(model_path, save_path):
                 num_inference_steps,
                 guidance_scale,
                 flow_shift,
-                embedded_guidance_scale,
-                fps,
-                video_quality,
-                use_cpu_fallback
+                embedded_guidance_scale
             ],
-            outputs=[output, error_output]
+            outputs=[output, status_msg]
         )
     
     return demo
@@ -289,8 +249,18 @@ if __name__ == "__main__":
     os.environ["GRADIO_ANALYTICS_ENABLED"] = "False"
     server_name = os.getenv("SERVER_NAME", "0.0.0.0")
     server_port = int(os.getenv("SERVER_PORT", "8081"))
-    args = parse_args()
-    print(args)
+    
+    try:
+        from hyvideo.config import parse_args
+        args = parse_args()
+        print(args)
+    except ImportError:
+        # If we can't import parse_args, create a simple args object
+        class Args:
+            def __init__(self):
+                self.model_base = "./ckpts"
+                self.save_path = "./results"
+        args = Args()
     
     # Set environment variables for better compatibility
     os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
@@ -302,6 +272,5 @@ if __name__ == "__main__":
         server_port=server_port,
         share=True,  # Enable share to fix localhost access issue
         debug=True,
-        show_error=True,
-        enable_queue=True
+        show_error=True
     )
