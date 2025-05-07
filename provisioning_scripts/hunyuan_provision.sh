@@ -18,7 +18,7 @@ touch /var/log/portal/hunyuan-ui.log
 
 # Clone Hunyuan repository
 git clone https://github.com/tencent/HunyuanVideo .
-git clone https://github.com/ygjd/start.git start
+git clone https://github.com/ygjd/base-image.git base-image
 
 # Create results directory
 mkdir -p /app/results
@@ -74,5 +74,5 @@ pip install accelerate>=0.14.0
 pip install imageio[ffmpeg] imageio[pyav]
 
 # Start the UI directly
-cd /app
+cd /app/base-image/
 python3 gradio_server.py
