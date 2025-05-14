@@ -35,7 +35,8 @@ pip install xfuser==0.4.0
 # Install Gradio and other dependencies
 pip install gradio --no-cache-dir
 pip install loguru einops imageio diffusers transformers
-pip install flash-attn --no-build-isolation
+pip install --upgrade pip setuptools wheel build
+pip install flash-attn --use-pep517
 pip install accelerate>=0.33.0 --no-deps
 pip install imageio[ffmpeg] imageio[pyav]
 
@@ -62,12 +63,6 @@ sleep 15
 # Fix Pandas
 pip install numpy pandas
 
-# Reinstall critical dependencies after wait
-pip install loguru einops imageio diffusers transformers
-pip install flash-attn --no-build-isolation
-pip install gradio --no-cache-dir
-pip install accelerate>=0.14.0
-pip install imageio[ffmpeg] imageio[pyav]
 
 # Start the UI directly
 cd /app/
