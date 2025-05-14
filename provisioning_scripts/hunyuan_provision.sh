@@ -18,7 +18,6 @@ touch /var/log/portal/hunyuan-ui.log
 
 # Clone Hunyuan repository
 git clone https://github.com/tencent/HunyuanVideo .
-git clone https://github.com/ygjd/base-image.git base-image
 
 # Create results directory
 mkdir -p /app/results
@@ -28,8 +27,8 @@ chmod 777 /app/results
 pip install --upgrade pip
 pip install -r requirements.txt
 
-# Install PyTorch w/ CUDA 12.4 support
-pip install torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https://download.pytorch.org/whl/cu124
+pip install torchvision 
+pip install torchaudio
 
 # Install FlashAttention and xDiT
 pip install ninja
@@ -37,9 +36,8 @@ pip install xfuser==0.4.0
 
 # Install Gradio and other dependencies
 pip install gradio --no-cache-dir
-pip install --force-reinstall loguru einops imageio diffusers transformers
-pip install flash-attn --no-build-isolation
-pip install accelerate>=0.14.0
+pip install loguru einops imageio diffusers transformerspip install flash-attn --no-build-isolation
+pip install accelerate
 pip install imageio[ffmpeg] imageio[pyav]
 
 # Install remaining dependencies
@@ -60,11 +58,10 @@ python3 /app/hyvideo/utils/preprocess_text_encoder_tokenizer_utils.py \
 
 # Wait for model downloads to complete (minutes)
 echo "Waiting for model downloads to complete (...)..."
-sleep 20  
+sleep 15 
 
-# Fix NumPy/Pandas binary mismatch that can occur after waiting
-pip uninstall -y numpy pandas
-pip install numpy==1.24.4 pandas==2.0.3 --force-reinstall
+# Fix Pandas
+pip install numpy pandas
 
 # Reinstall critical dependencies after wait
 pip install loguru einops imageio diffusers transformers
@@ -74,5 +71,5 @@ pip install accelerate>=0.14.0
 pip install imageio[ffmpeg] imageio[pyav]
 
 # Start the UI directly
-cd /app/base-image/
+cd /app/
 python3 gradio_server.py
