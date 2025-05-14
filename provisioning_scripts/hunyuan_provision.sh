@@ -27,8 +27,6 @@ chmod 777 /app/results
 pip install --upgrade pip
 pip install -r requirements.txt
 
-pip install torchvision 
-pip install torchaudio
 
 # Install FlashAttention and xDiT
 pip install ninja
