@@ -36,7 +36,8 @@ pip install xfuser==0.4.0
 
 # Install Gradio and other dependencies
 pip install gradio --no-cache-dir
-pip install loguru einops imageio diffusers transformerspip install flash-attn --no-build-isolation
+pip install loguru einops imageio diffusers transformers
+pip install flash-attn --no-build-isolation
 pip install accelerate
 pip install imageio[ffmpeg] imageio[pyav]
 
