@@ -36,7 +36,7 @@ pip install xfuser==0.4.0
 pip install gradio --no-cache-dir
 pip install loguru einops imageio diffusers transformers
 pip install flash-attn --no-build-isolation
-pip install accelerate
+pip install accelerate>=0.33.0 --no-deps
 pip install imageio[ffmpeg] imageio[pyav]
 
 # Install remaining dependencies
