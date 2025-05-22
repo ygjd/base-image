@@ -1,69 +1,42 @@
 #!/bin/bash
-# Direct provisioning script for Hunyuan on Vast.ai
-# Author: Jay Hill
 # Set environment
 export CUDA_HOME=/usr/local/cuda
 export DEBIAN_FRONTEND=noninteractive
 export PYTHONPATH=/app:$PYTHONPATH
 export PATH=/app:$PATH
 
-# Clean workspace and setup
-rm -rf /app
-mkdir -p /app
-cd /app
+# Clean and prep workspace
+rm -rf /app && mkdir -p /app && cd /app || exit 1
 
-# Create log directory
-mkdir -p /var/log/portal
-touch /var/log/portal/hunyuan-ui.log
+# Clone the official repo
+git clone https://github.com/tencent/HunyuanVideo . || exit 1
 
-# Clone Hunyuan repository
-git clone https://github.com/tencent/HunyuanVideo .
-
-# Create results directory
-mkdir -p /app/results
-chmod 777 /app/results
-
-# Install basic requirements
+# Upgrade pip and install base Python deps
 pip install --upgrade pip
 pip install -r requirements.txt
 
+pip install torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https://download.pytorch.org/whl/cu124
 
 # Install FlashAttention and xDiT
 pip install ninja
+pip install git+https://github.com/Dao-AILab/flash-attention.git@v2.6.3 --no-build-isolation
 pip install xfuser==0.4.0
 
-# Install Gradio and other dependencies
-pip install gradio --no-cache-dir
-pip install loguru einops imageio diffusers transformers
-pip install --upgrade pip setuptools wheel build
-pip install flash-attn --use-pep517
-pip install accelerate>=0.33.0 --no-deps
-pip install imageio[ffmpeg] imageio[pyav]
+# Ensure PyTorch and torchvision versions - critical for compatibility
+pip uninstall -y torch torchvision
+pip install torch==2.4.0 torchvision==0.19.0 --index-url https://download.pytorch.org/whl/cu124
 
-# Install remaining dependencies
-pip install uvicorn fastapi pandas numpy pillow
-pip install ffmpeg-python moviepy opencv-python
-pip install jinja2 markdown websockets aiohttp httpx
-pip install orjson pyyaml aiofiles python-multipart av
-
-# Download models
+# Download core HunyuanVideo model (transformers + vae)
 huggingface-cli download tencent/HunyuanVideo --local-dir ./ckpts
+
+# Download LLaVA model for llm encoder (text_encoder)
 huggingface-cli download xtuner/llava-llama-3-8b-v1_1-transformers --local-dir ./ckpts/llava-llama-3-8b-v1_1-transformers
+
+# Download CLIP model into text_encoder_2 folder
 huggingface-cli download openai/clip-vit-large-patch14 --local-dir ./ckpts/text_encoder_2
 
-# Preprocess model
+# Preprocess LLaVA model into usable text_encoder folder
+cd /app
 python3 /app/hyvideo/utils/preprocess_text_encoder_tokenizer_utils.py \
   --input_dir ./ckpts/llava-llama-3-8b-v1_1-transformers \
   --output_dir ./ckpts/text_encoder
-
-# Wait for model downloads to complete (minutes)
-echo "Waiting for model downloads to complete (...)..."
-sleep 15 
-
-# Fix Pandas
-pip install numpy pandas
-
-
-# Start the UI directly
-cd /app/
-python3 gradio_server.py
